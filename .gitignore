@@ -1,0 +1,17 @@
+# Build output
+frontend/dist/*
+!frontend/dist/.gitkeep
+frontend/public/dictionary.json
+frontend/wailsjs/
+build/bin/
+package.json.md5
+
+# Logs
+*.log
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

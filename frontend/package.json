@@ -1,0 +1,9 @@
+{
+  "name": "wl-skk-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "prebuild": "node ../scripts/build_dictionary.js",
+    "build": "node build.mjs"
+  }
+}

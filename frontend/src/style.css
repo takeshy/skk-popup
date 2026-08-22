@@ -1,0 +1,241 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.4;
+}
+
+body {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 14px;
+  color: #172033;
+  background: #f7f9fc;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.mode {
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: #146fab;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mode:hover {
+  background: #0f6fad;
+}
+
+textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 92px;
+  resize: none;
+  border: 1px solid #c6d0dd;
+  border-radius: 6px;
+  padding: 9px 10px;
+  background: #fff;
+  color: #172033;
+  font: 18px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+.candidate {
+  box-sizing: border-box;
+  min-height: 28px;
+  margin-top: 8px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #166534;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.candidate[data-active="true"] {
+  border-color: rgba(22, 101, 52, 0.26);
+  background: #f0fdf4;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.status {
+  margin: 0;
+  color: #526174;
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  min-height: 32px;
+  border: 1px solid #c6d0dd;
+  border-radius: 6px;
+  padding: 5px 10px;
+  background: #fff;
+  color: #172033;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+button.primary {
+  border-color: #0f6fad;
+  background: #0f6fad;
+  color: #fff;
+}
+
+.register-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.register-overlay[data-open="true"] {
+  display: flex;
+}
+
+.register-dialog {
+  box-sizing: border-box;
+  width: min(420px, 100%);
+  border: 1px solid #c6d0dd;
+  border-radius: 10px;
+  padding: 16px;
+  background: #fff;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.3);
+}
+
+.register-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.register-dialog p {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.register-reading {
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+}
+
+.register-mode {
+  display: inline-block;
+  margin-left: 6px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: #146fab;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: 1px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.register-mode:focus-visible {
+  outline: 2px solid #0f6fad;
+  outline-offset: 2px;
+}
+
+.register-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #c6d0dd;
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: #fff;
+  color: #172033;
+  font: 16px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.register-error {
+  min-height: 18px;
+  margin: 7px 0 8px !important;
+  color: #b91c1c;
+  font-size: 12px !important;
+}
+
+.register-candidate {
+  min-height: 20px;
+  margin: 7px 0 0;
+  color: #166534;
+  font-size: 12px;
+}
+
+.register-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color: #e8edf5;
+    background: #111827;
+  }
+
+  textarea,
+  button,
+  .register-dialog,
+  .register-input {
+    border-color: #344155;
+    background: #172033;
+    color: #e8edf5;
+  }
+
+  .status {
+    color: #aeb8c7;
+  }
+
+  .candidate {
+    color: #86efac;
+  }
+
+  .register-candidate {
+    color: #86efac;
+  }
+
+  .candidate[data-active="true"] {
+    border-color: rgba(134, 239, 172, 0.34);
+    background: rgba(20, 83, 45, 0.42);
+  }
+
+  button.primary {
+    border-color: #2f9ae0;
+    background: #146fac;
+    color: #fff;
+  }
+}

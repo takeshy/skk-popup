@@ -1,0 +1,12 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "wl-skk",
+  "outputfilename": "wl-skk",
+  "frontend:dir": "frontend",
+  "frontend:install": "",
+  "frontend:build": "npm run build",
+  "author": {
+    "name": "takeshy",
+    "email": ""
+  }
+}
