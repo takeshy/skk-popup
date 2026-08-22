@@ -119,8 +119,8 @@ func (a *App) ShowPopup() {
 
 // HidePopup hides the window (the daemon keeps running), flushing any
 // staged dictionary writes first. When auto-paste is enabled and text was
-// just copied, focus is restored to the previous window and Ctrl+V is
-// sent after the configured delay.
+// just copied, focus is restored to the previous window and the configured
+// paste shortcut (clipboard.paste_key) is sent after the configured delay.
 func (a *App) HidePopup() {
 	a.mu.Lock()
 	wasVisible := a.visible
@@ -141,7 +141,7 @@ func (a *App) HidePopup() {
 	}
 	if doPaste {
 		time.Sleep(time.Duration(a.cfg.Clipboard.AutoPasteDelayMs) * time.Millisecond)
-		_ = clipboard.Paste()
+		_ = clipboard.Paste(a.cfg.Clipboard.PasteKey)
 	}
 }
 

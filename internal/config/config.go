@@ -23,6 +23,7 @@ type ClipboardConfig struct {
 	Backend          string // "wl-copy" | "wails"
 	AutoPaste        bool
 	AutoPasteDelayMs int
+	PasteKey         string // "ctrl+v" | "ctrl+shift+v"
 }
 
 type DictionaryConfig struct {
@@ -39,13 +40,14 @@ func Default() *Config {
 	return &Config{
 		Window: WindowConfig{
 			Width:        600,
-			Height:       200,
+			Height:       240,
 			RestoreFocus: true,
 		},
 		Clipboard: ClipboardConfig{
 			Backend:          "wl-copy",
 			AutoPaste:        false,
 			AutoPasteDelayMs: 80,
+			PasteKey:         "ctrl+v",
 		},
 	}
 }
@@ -141,6 +143,10 @@ func (c *Config) apply(section, key, value string) {
 			c.Clipboard.AutoPaste = value == "true"
 		case "auto_paste_delay_ms":
 			c.Clipboard.AutoPasteDelayMs = atoiOr(value, c.Clipboard.AutoPasteDelayMs)
+		case "paste_key":
+			if value == "ctrl+v" || value == "ctrl+shift+v" {
+				c.Clipboard.PasteKey = value
+			}
 		}
 	case "dictionary":
 		switch key {

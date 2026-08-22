@@ -96,17 +96,22 @@ chrome-skk-lite のクリップボード入力窓と同じ挙動です。
 ```toml
 [window]
 width = 600
-height = 200
+height = 240
 # 閉じたあとに直前のウィンドウへフォーカスを戻す
 restore_focus = true
 
 [clipboard]
 # "wl-copy" | "wails"
 backend = "wl-copy"
-# コピー後に自動で Ctrl+V を送出 (wtype が必要)
+# コピー後に自動で貼り付けショートカットを送出 (wtype が必要)
 auto_paste = false
 # 自動貼り付け時、フォーカス復帰から送出までの待ち時間 (ミリ秒)
 auto_paste_delay_ms = 80
+# "ctrl+v" | "ctrl+shift+v"
+# ほとんどの GUI アプリ (ブラウザ・GTK/Qt) は ctrl+v だが、foot/alacritty/kitty
+# などの多くのターミナルは Ctrl+V を readline の「次の文字をリテラル入力」に
+# 使うため貼り付けには反応せず、ctrl+shift+v が必要。主な貼り付け先に合わせて選ぶ
+paste_key = "ctrl+v"
 
 [dictionary]
 # 外部辞書ファイルのパス。指定するとバイナリ埋め込みより優先される (省略可)

@@ -65,9 +65,21 @@ type errNoBackend struct{}
 
 func (errNoBackend) Error() string { return "no clipboard backend available" }
 
-// Paste sends Ctrl+V to whatever window has keyboard focus via wtype.
-func Paste() error {
-	return exec.Command("wtype", "-M", "ctrl", "-k", "v", "-m", "ctrl").Run()
+// Paste sends the configured paste shortcut to whatever window has
+// keyboard focus, via wtype.
+//
+// There is no single paste shortcut that works everywhere: GTK/Qt widgets
+// and browsers use Ctrl+V, but most Linux terminal emulators reserve
+// Ctrl+V for the shell/readline "insert next character literally" binding
+// and paste on Ctrl+Shift+V instead. key selects which one to send; see
+// config.toml's [clipboard] paste_key.
+func Paste(key string) error {
+	switch key {
+	case "ctrl+shift+v":
+		return exec.Command("wtype", "-M", "ctrl", "-M", "shift", "-k", "v", "-m", "shift", "-m", "ctrl").Run()
+	default:
+		return exec.Command("wtype", "-M", "ctrl", "-k", "v", "-m", "ctrl").Run()
+	}
 }
 
 // FocusCurrentOrLast asks Hyprland to restore focus to the previously
