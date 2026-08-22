@@ -1,5 +1,5 @@
 // Package ipc implements the Unix domain socket protocol used to control
-// the running wl-skk daemon from short-lived CLI invocations.
+// the running skk-popup daemon from short-lived CLI invocations.
 //
 // The protocol is line-based plain text: a client connects, sends one of
 // "toggle" / "show" / "hide" / "quit", and receives either "ok" or
@@ -14,17 +14,17 @@ import (
 	"strconv"
 )
 
-// SocketPath returns the IPC socket path: $XDG_RUNTIME_DIR/wl-skk.sock on
-// Linux, /tmp/wl-skk-$UID.sock as a Linux fallback, and a temp-directory
+// SocketPath returns the IPC socket path: $XDG_RUNTIME_DIR/skk-popup.sock on
+// Linux, /tmp/skk-popup-$UID.sock as a Linux fallback, and a temp-directory
 // path on Windows (Go's unix socket support works on Windows 10+).
 func SocketPath() string {
 	if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
-		return filepath.Join(dir, "wl-skk.sock")
+		return filepath.Join(dir, "skk-popup.sock")
 	}
 	if runtime.GOOS == "windows" {
-		return filepath.Join(os.TempDir(), "wl-skk.sock")
+		return filepath.Join(os.TempDir(), "skk-popup.sock")
 	}
-	return fmt.Sprintf("/tmp/wl-skk-%s.sock", strconv.Itoa(os.Getuid()))
+	return fmt.Sprintf("/tmp/skk-popup-%s.sock", strconv.Itoa(os.Getuid()))
 }
 
 // IsValidCommand reports whether command is one accepted by the daemon.

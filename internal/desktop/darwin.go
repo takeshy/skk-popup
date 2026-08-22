@@ -3,7 +3,7 @@
 // macOS implements paste and focus restoration through osascript (System
 // Events). Sending keystrokes to other applications and setting their
 // frontmost state require the Accessibility permission (and Automation
-// permission for System Events) for the wl-skk binary; grant them in
+// permission for System Events) for the skk-popup binary; grant them in
 // System Settings > Privacy & Security.
 package desktop
 

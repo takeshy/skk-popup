@@ -1,6 +1,6 @@
-// Package config loads the wl-skk configuration file.
+// Package config loads the skk-popup configuration file.
 //
-// Only the small TOML subset used by wl-skk is supported: [section]
+// Only the small TOML subset used by skk-popup is supported: [section]
 // headers and `key = value` pairs where value is a string ("..."),
 // integer, or boolean. Unknown keys are ignored.
 package config
@@ -77,15 +77,15 @@ func defaultClipboardBackend() string {
 }
 
 // Dir returns the per-user configuration directory:
-// $XDG_CONFIG_HOME/wl-skk (or ~/.config/wl-skk) on Linux,
-// %AppData%/wl-skk on Windows, and ~/Library/Application Support/wl-skk
+// $XDG_CONFIG_HOME/skk-popup (or ~/.config/skk-popup) on Linux,
+// %AppData%/skk-popup on Windows, and ~/Library/Application Support/skk-popup
 // on macOS.
 func Dir() string {
 	base, err := os.UserConfigDir()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(base, "wl-skk")
+	return filepath.Join(base, "skk-popup")
 }
 
 // Path returns the path to the configuration file.

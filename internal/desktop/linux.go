@@ -18,7 +18,7 @@ func (Linux) Name() string { return "linux" }
 func (Linux) RememberFocus() {}
 
 func (Linux) RestoreFocus() {
-	// Failures are ignored: wl-skk must keep working outside Hyprland.
+	// Failures are ignored: skk-popup must keep working outside Hyprland.
 	_ = exec.Command("hyprctl", "dispatch", "focuscurrentorlast").Run()
 }
 

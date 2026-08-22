@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// IsDaemonRunning reports whether another wl-skk daemon is accepting
+// IsDaemonRunning reports whether another skk-popup daemon is accepting
 // commands on the socket.
 func IsDaemonRunning(socketPath string) bool {
 	conn, err := net.DialTimeout("unix", socketPath, 500*time.Millisecond)
@@ -39,7 +39,7 @@ func RunClientCommand(command string) error {
 	socketPath := SocketPath()
 	conn, err := net.DialTimeout("unix", socketPath, time.Second)
 	if err != nil {
-		return fmt.Errorf("wl-skk daemon is not running (%v)", err)
+		return fmt.Errorf("skk-popup daemon is not running (%v)", err)
 	}
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))

@@ -4,7 +4,7 @@ package hotkey
 
 import "errors"
 
-// ErrUnsupported is returned on platforms where wl-skk does not register
+// ErrUnsupported is returned on platforms where skk-popup does not register
 // its own global hotkey.
 var ErrUnsupported = errors.New("hotkey: not supported on this platform")
 

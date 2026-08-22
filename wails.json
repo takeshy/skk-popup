@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "wl-skk",
-  "outputfilename": "wl-skk",
+  "name": "skk-popup",
+  "outputfilename": "skk-popup",
   "frontend:dir": "frontend",
   "frontend:install": "",
   "frontend:build": "npm run build",

@@ -8,7 +8,7 @@ import (
 
 func testStore(t *testing.T) *Store {
 	t.Helper()
-	s, err := NewStoreAt(filepath.Join(t.TempDir(), "wl-skk"))
+	s, err := NewStoreAt(filepath.Join(t.TempDir(), "skk-popup"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -16,7 +16,7 @@ func testStore(t *testing.T) *Store {
 }
 
 func TestStorePersistsAcrossReload(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "wl-skk")
+	dir := filepath.Join(t.TempDir(), "skk-popup")
 	s, err := NewStoreAt(dir)
 	if err != nil {
 		t.Fatal(err)

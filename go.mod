@@ -1,4 +1,4 @@
-module github.com/takeshy/wl-skk-popup
+module github.com/takeshy/skk-popup
 
 go 1.23
 

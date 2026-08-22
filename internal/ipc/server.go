@@ -88,7 +88,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		return
 	}
 	if s.handler == nil {
-		writeResponse(conn, "error: wl-skk is still starting")
+		writeResponse(conn, "error: skk-popup is still starting")
 		return
 	}
 	if err := s.handler(command); err != nil {

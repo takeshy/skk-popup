@@ -1,5 +1,5 @@
 // Package dict persists the user dictionary and candidate history as
-// JSON files under the per-user data directory ($XDG_DATA_HOME/wl-skk on
+// JSON files under the per-user data directory ($XDG_DATA_HOME/skk-popup on
 // Linux; see dataDir for Windows/macOS).
 //
 // Writes are debounced (flushed 2 seconds after the last update) and are
@@ -33,33 +33,33 @@ type Store struct {
 }
 
 // dataDir returns the per-user data directory:
-// $XDG_DATA_HOME/wl-skk (or ~/.local/share/wl-skk) on Linux,
-// %LocalAppData%/wl-skk on Windows, and
-// ~/Library/Application Support/wl-skk on macOS.
+// $XDG_DATA_HOME/skk-popup (or ~/.local/share/skk-popup) on Linux,
+// %LocalAppData%/skk-popup on Windows, and
+// ~/Library/Application Support/skk-popup on macOS.
 func dataDir() string {
 	if base := os.Getenv("XDG_DATA_HOME"); base != "" {
-		return filepath.Join(base, "wl-skk")
+		return filepath.Join(base, "skk-popup")
 	}
 	switch runtime.GOOS {
 	case "windows":
 		if base := os.Getenv("LOCALAPPDATA"); base != "" {
-			return filepath.Join(base, "wl-skk")
+			return filepath.Join(base, "skk-popup")
 		}
 	case "darwin":
 		home, err := os.UserHomeDir()
 		if err == nil {
-			return filepath.Join(home, "Library", "Application Support", "wl-skk")
+			return filepath.Join(home, "Library", "Application Support", "skk-popup")
 		}
 	default:
 		home, err := os.UserHomeDir()
 		if err == nil {
-			return filepath.Join(home, ".local", "share", "wl-skk")
+			return filepath.Join(home, ".local", "share", "skk-popup")
 		}
 	}
 	return ""
 }
 
-// NewStore creates a store rooted at $XDG_DATA_HOME/wl-skk.
+// NewStore creates a store rooted at $XDG_DATA_HOME/skk-popup.
 func NewStore() (*Store, error) {
 	dir := dataDir()
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -160,7 +160,7 @@ func readFileOrEmpty(path, emptyValue string) string {
 
 func writeAtomic(path, content string) error {
 	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".wl-skk-*.tmp")
+	tmp, err := os.CreateTemp(dir, ".skk-popup-*.tmp")
 	if err != nil {
 		return err
 	}

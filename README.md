@@ -1,4 +1,4 @@
-# wl-skk
+# skk-popup
 
 Wails 製の常駐型 SKK ポップアップ入力窓。ホットキーで呼び出して日本語を入力し、確定文字列をクリップボードへ送ります。Linux/Wayland (Hyprland)・Windows・macOS に対応しています。
 
@@ -18,13 +18,13 @@ GitHub Releases からバイナリをダウンロードしてください。
 
 ```sh
 # Linux
-install -Dm755 wl-skk-linux-amd64 ~/.local/bin/wl-skk
+install -Dm755 skk-popup-linux-amd64 ~/.local/bin/skk-popup
 
 # Windows (PowerShell)
-# wl-skk-windows-amd64.exe を wl-skk.exe として PATH の通った場所へ
+# skk-popup-windows-amd64.exe を skk-popup.exe として PATH の通った場所へ
 
 # macOS (Apple Silicon)
-chmod +x wl-skk-darwin-arm64 && sudo mv wl-skk-darwin-arm64 /usr/local/bin/wl-skk
+chmod +x skk-popup-darwin-arm64 && sudo mv skk-popup-darwin-arm64 /usr/local/bin/skk-popup
 ```
 
 ### Hyprland への登録
@@ -32,16 +32,16 @@ chmod +x wl-skk-darwin-arm64 && sudo mv wl-skk-darwin-arm64 /usr/local/bin/wl-sk
 ```ini
 # ~/.config/hypr/hyprland.conf
 
-windowrulev2 = float, class:^(wl-skk)$
-windowrulev2 = center, class:^(wl-skk)$
-windowrulev2 = pin, class:^(wl-skk)$
-windowrulev2 = stayfocused, class:^(wl-skk)$
-windowrulev2 = noborder, class:^(wl-skk)$
-windowrulev2 = noanim, class:^(wl-skk)$
+windowrulev2 = float, class:^(skk-popup)$
+windowrulev2 = center, class:^(skk-popup)$
+windowrulev2 = pin, class:^(skk-popup)$
+windowrulev2 = stayfocused, class:^(skk-popup)$
+windowrulev2 = noborder, class:^(skk-popup)$
+windowrulev2 = noanim, class:^(skk-popup)$
 
-bind = CTRL SHIFT, K, exec, wl-skk toggle
+bind = CTRL SHIFT, K, exec, skk-popup toggle
 
-exec-once = uwsm app -- wl-skk
+exec-once = uwsm app -- skk-popup
 ```
 
 - `stayfocused` が最重要です。これがないと窓が表示されてもキーボードフォーカスが移らず入力できません。
@@ -58,8 +58,8 @@ exec-once = uwsm app -- wl-skk
 
 キーボードショートカットは OS 側の機能に委譲します (アプリ内では捕捉しません):
 
-- [Shortcuts.app](https://support.apple.com/guide/shortcuts-mac/intro-to-shortcuts-apdfebc4f80a/mac) で「シェルスクリプトを実行」→ `wl-skk toggle` を作成し、ショートカットにキーを割り当てる
-- または skhd / Raycast / Hammerspoon などから `wl-skk toggle` を呼ぶ
+- [Shortcuts.app](https://support.apple.com/guide/shortcuts-mac/intro-to-shortcuts-apdfebc4f80a/mac) で「シェルスクリプトを実行」→ `skk-popup toggle` を作成し、ショートカットにキーを割り当てる
+- または skhd / Raycast / Hammerspoon などから `skk-popup toggle` を呼ぶ
 
 自動貼り付けとフォーカス復帰は System Events 経由で行うため、初回実行時に **Accessibility** と **Automation** の権限許可を求められます (`システム設定 > プライバシーとセキュリティ`)。自動起動は「ログイン項目」に登録してください。
 
@@ -68,11 +68,11 @@ macOS では設定の `paste_key` の `ctrl` は **Cmd** として扱われま�
 ## 使い方
 
 ```text
-wl-skk            デーモンを起動 (常駐)
-wl-skk toggle     表示/非表示をトグル
-wl-skk show       表示
-wl-skk hide       非表示
-wl-skk quit       デーモン終了
+skk-popup            デーモンを起動 (常駐)
+skk-popup toggle     表示/非表示をトグル
+skk-popup show       表示
+skk-popup hide       非表示
+skk-popup quit       デーモン終了
 ```
 
 1. `Ctrl+Shift+K` (上記 bind) で入力窓を出す。窓は必ず `かな` モードで開きます
@@ -116,7 +116,7 @@ chrome-skk-lite のクリップボード入力窓と同じ挙動です。
 
 ## 設定
 
-Linux: `~/.config/wl-skk/config.toml` / Windows: `%AppData%\wl-skk\config.toml` / macOS: `~/Library/Application Support/wl-skk/config.toml`
+Linux: `~/.config/skk-popup/config.toml` / Windows: `%AppData%\skk-popup\config.toml` / macOS: `~/Library/Application Support/skk-popup/config.toml`
 
 ```toml
 [window]
@@ -155,7 +155,7 @@ external_path = ""
 
 | ファイル | Linux | Windows | macOS |
 |---|---|---|---|
-| ユーザー辞書 (`userdict.json`) | `$XDG_DATA_HOME/wl-skk/` | `%LocalAppData%\wl-skk\` | `~/Library/Application Support/wl-skk/` |
+| ユーザー辞書 (`userdict.json`) | `$XDG_DATA_HOME/skk-popup/` | `%LocalAppData%\skk-popup\` | `~/Library/Application Support/skk-popup/` |
 | 学習履歴 (`history.json`) | 同上 | 同上 | 同上 |
 
 書き込みは最終更新 2 秒後にデバウンスフラッシュされ、窓を閉じるタイミングでも必ずフラッシュされます。
@@ -173,7 +173,7 @@ external_path = ""
 cd frontend && npm run build && cd ..   # 辞書取得 (~50MB) + dist 生成。2 回目以降は辞書をスキップ
 go run github.com/wailsapp/wails/v2/cmd/wails@v2.10.2 build -tags webkit2_41 -clean   # Linux
 # go run ... build -clean -platform windows/amd64                                     # Windows
-install -Dm755 build/bin/wl-skk ~/.local/bin/wl-skk
+install -Dm755 build/bin/skk-popup ~/.local/bin/skk-popup
 ```
 
 - `-tags webkit2_41` は WebKit2GTK 4.1 向けのビルドタグです (Ubuntu 24.04 / Arch など)。4.0 のみの環境では外してください。
@@ -201,10 +201,10 @@ go test ./...
 ## アーキテクチャ
 
 ```text
-Hyprland bind ──▶ wl-skk toggle ──▶ Unix socket ($XDG_RUNTIME_DIR/wl-skk.sock)
+Hyprland bind ──▶ skk-popup toggle ──▶ Unix socket ($XDG_RUNTIME_DIR/skk-popup.sock)
                                         │
                                         ▼
-                     wl-skk デーモン (常駐)
+                     skk-popup デーモン (常駐)
                      ├─ IPC server (toggle/show/hide/quit)
                      ├─ AssetServer (/dictionary.json を WebView へ配信)
                      ├─ ユーザー辞書・学習履歴の永続化

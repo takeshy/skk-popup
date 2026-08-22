@@ -18,23 +18,23 @@ jobs:
         include:
           - os: ubuntu-24.04
             platform: linux/amd64
-            artifact: wl-skk-linux-amd64
+            artifact: skk-popup-linux-amd64
             tags: webkit2_41
           - os: ubuntu-24.04-arm
             platform: linux/arm64
-            artifact: wl-skk-linux-arm64
+            artifact: skk-popup-linux-arm64
             tags: webkit2_41
           - os: macos-14
             platform: darwin/arm64
-            artifact: wl-skk-darwin-arm64
+            artifact: skk-popup-darwin-arm64
             tags: ""
           - os: windows-latest
             platform: windows/amd64
-            artifact: wl-skk-windows-amd64.exe
+            artifact: skk-popup-windows-amd64.exe
             tags: ""
           - os: windows-latest
             platform: windows/arm64
-            artifact: wl-skk-windows-arm64.exe
+            artifact: skk-popup-windows-arm64.exe
             tags: ""
 
     steps:

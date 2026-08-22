@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/takeshy/wl-skk-popup/internal/assetserver"
-	"github.com/takeshy/wl-skk-popup/internal/ipc"
+	"github.com/takeshy/skk-popup/internal/assetserver"
+	"github.com/takeshy/skk-popup/internal/ipc"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	wailsassetserver "github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -23,7 +23,7 @@ func main() {
 			return
 		}
 		if err := ipc.RunClientCommand(command); err != nil {
-			fmt.Fprintln(os.Stderr, "wl-skk:", err)
+			fmt.Fprintln(os.Stderr, "skk-popup:", err)
 			os.Exit(1)
 		}
 		return
@@ -42,7 +42,7 @@ func runDaemon() {
 		// generation without actually regenerating anything.
 		socketPath := ipc.SocketPath()
 		if ipc.IsDaemonRunning(socketPath) {
-			fmt.Fprintln(os.Stderr, "wl-skk: daemon is already running")
+			fmt.Fprintln(os.Stderr, "skk-popup: daemon is already running")
 			os.Exit(1)
 		}
 	}
@@ -50,7 +50,7 @@ func runDaemon() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:             "wl-skk",
+		Title:             "skk-popup",
 		Width:             app.cfg.Window.Width,
 		Height:            app.cfg.Window.Height,
 		Frameless:         true,
@@ -69,18 +69,18 @@ func runDaemon() {
 		},
 	})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "wl-skk:", err)
+		fmt.Fprintln(os.Stderr, "skk-popup:", err)
 		os.Exit(1)
 	}
 }
 
 func usage() {
-	fmt.Println(`wl-skk - SKK popup input window for Wayland
+	fmt.Println(`skk-popup - SKK popup input window
 
 Usage:
-  wl-skk            start the daemon (resident mode)
-  wl-skk toggle     show/hide the popup window
-  wl-skk show       show the popup window
-  wl-skk hide       hide the popup window
-  wl-skk quit       stop the daemon`)
+  skk-popup            start the daemon (resident mode)
+  skk-popup toggle     show/hide the popup window
+  skk-popup show       show the popup window
+  skk-popup hide       hide the popup window
+  skk-popup quit       stop the daemon`)
 }

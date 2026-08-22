@@ -5,12 +5,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/takeshy/wl-skk-popup/internal/clipboard"
-	"github.com/takeshy/wl-skk-popup/internal/config"
-	"github.com/takeshy/wl-skk-popup/internal/desktop"
-	"github.com/takeshy/wl-skk-popup/internal/dict"
-	"github.com/takeshy/wl-skk-popup/internal/hotkey"
-	"github.com/takeshy/wl-skk-popup/internal/ipc"
+	"github.com/takeshy/skk-popup/internal/clipboard"
+	"github.com/takeshy/skk-popup/internal/config"
+	"github.com/takeshy/skk-popup/internal/desktop"
+	"github.com/takeshy/skk-popup/internal/dict"
+	"github.com/takeshy/skk-popup/internal/hotkey"
+	"github.com/takeshy/skk-popup/internal/ipc"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -46,7 +46,7 @@ func (a *App) startup(ctx context.Context) {
 	if a.cfg.Hotkey.Enabled {
 		mgr, err := hotkey.Start(a.cfg.Hotkey.Accelerator, a.TogglePopup)
 		if err != nil {
-			// Not fatal: the popup stays reachable via `wl-skk toggle`.
+			// Not fatal: the popup stays reachable via `skk-popup toggle`.
 			wailsruntime.LogError(ctx, "hotkey: "+err.Error())
 		} else {
 			a.hotkeyMgr = mgr
