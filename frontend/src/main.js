@@ -1355,6 +1355,9 @@
     }
     syncSelectionFromInput();
     resetComposition();
+    state.asciiMode = false;
+    state.wideAscii = false;
+    state.katakanaMode = null;
     state.text = "";
     state.cursor = 0;
     state.selectionEnd = 0;

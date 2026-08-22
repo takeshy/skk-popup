@@ -18,6 +18,9 @@ header {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 10px;
+  --wails-draggable: drag;
+  cursor: move;
+  user-select: none;
 }
 
 h1 {
@@ -27,6 +30,7 @@ h1 {
 }
 
 .mode {
+  --wails-draggable: no-drag;
   padding: 3px 7px;
   border-radius: 5px;
   background: #146fab;

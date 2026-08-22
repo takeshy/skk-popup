@@ -535,6 +535,8 @@ async function runTest(name, fn) {
 
   await runTest("popup:shown clears the buffer for a fresh session", async () => {
     await type("Kanji");
+    await press("l");
+    assert.equal(elements.mode.textContent, "SKK OFF");
     emitPopupShown();
     assert.equal(input.value, "");
     assert.equal(elements.mode.textContent, "SKK かな");
