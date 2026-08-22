@@ -108,10 +108,11 @@ auto_paste = false
 # 自動貼り付け時、フォーカス復帰から送出までの待ち時間 (ミリ秒)
 auto_paste_delay_ms = 80
 # "ctrl+v" | "ctrl+shift+v"
-# ほとんどの GUI アプリ (ブラウザ・GTK/Qt) は ctrl+v だが、foot/alacritty/kitty
-# などの多くのターミナルは Ctrl+V を readline の「次の文字をリテラル入力」に
-# 使うため貼り付けには反応せず、ctrl+shift+v が必要。主な貼り付け先に合わせて選ぶ
-paste_key = "ctrl+v"
+# foot/alacritty/kitty などの多くのターミナルは Ctrl+V を readline の「次の
+# 文字をリテラル入力」に使うため貼り付けに反応せず、ctrl+shift+v が必要。
+# GUI アプリ (ブラウザ・GTK/Qt) は主に ctrl+v だが ctrl+shift+v も通ることが
+# 多いため、デフォルトは ctrl+shift+v。貼り付け先で反応しない場合は ctrl+v に
+paste_key = "ctrl+shift+v"
 
 [dictionary]
 # 外部辞書ファイルのパス。指定するとバイナリ埋め込みより優先される (省略可)

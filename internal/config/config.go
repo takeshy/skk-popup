@@ -47,7 +47,7 @@ func Default() *Config {
 			Backend:          "wl-copy",
 			AutoPaste:        false,
 			AutoPasteDelayMs: 80,
-			PasteKey:         "ctrl+v",
+			PasteKey:         "ctrl+shift+v",
 		},
 	}
 }
