@@ -1,22 +1,30 @@
 # wl-skk
 
-Wails 製の常駐型 SKK ポップアップ入力窓。Hyprland のキーバインドから呼び出して日本語を入力し、確定文字列をクリップボードへ送ります。
+Wails 製の常駐型 SKK ポップアップ入力窓。ホットキーで呼び出して日本語を入力し、確定文字列をクリップボードへ送ります。Linux/Wayland (Hyprland)・Windows・macOS に対応しています。
 
 [chrome-skk-lite](https://github.com/takeshy/chrome-skk-lite) の「クリップボード入力窓」(`Ctrl+Shift+K`) をブラウザ外でも使えるようにした、独立したデスクトップアプリです。Chromium の起動モード (Ozone / Wayland) やバージョンに一切依存しません。
 
 ## 動作要件
 
-- Linux + Wayland (Hyprland 前提。他のコンポジタではフォーカス制御が効かない可能性があります)
-- `wl-clipboard` (`wl-copy`)
-- WebKit2GTK 4.1 (バイナリ実行時)
-- 任意: `wtype` (自動貼り付け機能を使う場合)
+| OS | 必要なもの |
+|---|---|
+| Linux + Wayland (Hyprland 推奨) | `wl-clipboard` (`wl-copy`)、WebKit2GTK 4.1、任意で `wtype` (自動貼り付け時) |
+| Windows 10 以降 | 追加要件なし (ホットキーはアプリ内登録) |
+| macOS | `osascript` が使う **Accessibility / Automation 権限**の許可 (自動貼り付けとフォーカス復帰時) |
 
 ## インストール
 
 GitHub Releases からバイナリをダウンロードしてください。
 
 ```sh
+# Linux
 install -Dm755 wl-skk-linux-amd64 ~/.local/bin/wl-skk
+
+# Windows (PowerShell)
+# wl-skk-windows-amd64.exe を wl-skk.exe として PATH の通った場所へ
+
+# macOS (Apple Silicon)
+chmod +x wl-skk-darwin-arm64 && sudo mv wl-skk-darwin-arm64 /usr/local/bin/wl-skk
 ```
 
 ### Hyprland への登録
@@ -39,6 +47,23 @@ exec-once = uwsm app -- wl-skk
 - `stayfocused` が最重要です。これがないと窓が表示されてもキーボードフォーカスが移らず入力できません。
 - 実際の `class` 名は `hyprctl clients` で確認し、必要なら正規表現を調整してください。
 - `exec-once` でデーモンを常駐させます。二重起動しようとしても既存プロセスは壊れません。
+
+### Windows
+
+ホットキーはアプリ自身が `RegisterHotKey` で登録します(既定 `Ctrl+Shift+K`、`[hotkey]` セクションで変更・無効化可能)。自動起動はスタートアップフォルダにショートカットを置いてください (`Win+R` → `shell:startup`)。
+
+フォーカス復帰は表示直前の前景ウィンドウを記憶して `SetForegroundWindow` で戻します。
+
+### macOS
+
+キーボードショートカットは OS 側の機能に委譲します (アプリ内では捕捉しません):
+
+- [Shortcuts.app](https://support.apple.com/guide/shortcuts-mac/intro-to-shortcuts-apdfebc4f80a/mac) で「シェルスクリプトを実行」→ `wl-skk toggle` を作成し、ショートカットにキーを割り当てる
+- または skhd / Raycast / Hammerspoon などから `wl-skk toggle` を呼ぶ
+
+自動貼り付けとフォーカス復帰は System Events 経由で行うため、初回実行時に **Accessibility** と **Automation** の権限許可を求められます (`システム設定 > プライバシーとセキュリティ`)。自動起動は「ログイン項目」に登録してください。
+
+macOS では設定の `paste_key` の `ctrl` は **Cmd** として扱われます (`ctrl+v` → Cmd+V)。
 
 ## 使い方
 
@@ -91,7 +116,7 @@ chrome-skk-lite のクリップボード入力窓と同じ挙動です。
 
 ## 設定
 
-`~/.config/wl-skk/config.toml`
+Linux: `~/.config/wl-skk/config.toml` / Windows: `%AppData%\wl-skk\config.toml` / macOS: `~/Library/Application Support/wl-skk/config.toml`
 
 ```toml
 [window]
@@ -101,9 +126,9 @@ height = 240
 restore_focus = true
 
 [clipboard]
-# "wl-copy" | "wails"
+# "wl-copy" | "wails" (既定: Linux=wl-copy, Windows/macOS=wails)
 backend = "wl-copy"
-# コピー後に自動で貼り付けショートカットを送出 (wtype が必要)
+# コピー後に自動で貼り付けショートカットを送出 (Linux: wtype, Windows: SendInput, macOS: osascript)
 auto_paste = false
 # 自動貼り付け時、フォーカス復帰から送出までの待ち時間 (ミリ秒)
 auto_paste_delay_ms = 80
@@ -114,6 +139,13 @@ auto_paste_delay_ms = 80
 # 多いため、デフォルトは ctrl+shift+v。貼り付け先で反応しない場合は ctrl+v に
 paste_key = "ctrl+shift+v"
 
+[hotkey]
+# Windows のみ有効。アプリ内でグローバルホットキーを登録する (RegisterHotKey)。
+# 既定は Windows のみ true (Linux は Hyprland bind、macOS は OS のショートカット
+# 機能に委譲するため、他 OS では設定しても無視される)
+enabled = true
+accelerator = "Ctrl+Shift+K"   # A-Z, 0-9, F1-F24 + Ctrl/Shift/Alt/Win
+
 [dictionary]
 # 外部辞書ファイルのパス。指定するとバイナリ埋め込みより優先される (省略可)
 external_path = ""
@@ -121,10 +153,10 @@ external_path = ""
 
 ## データファイル
 
-| ファイル | パス | 内容 |
-|---|---|---|
-| ユーザー辞書 | `$XDG_DATA_HOME/wl-skk/userdict.json` | 手動登録した単語 |
-| 学習履歴 | `$XDG_DATA_HOME/wl-skk/history.json` | 最終確定候補の履歴 |
+| ファイル | Linux | Windows | macOS |
+|---|---|---|---|
+| ユーザー辞書 (`userdict.json`) | `$XDG_DATA_HOME/wl-skk/` | `%LocalAppData%\wl-skk\` | `~/Library/Application Support/wl-skk/` |
+| 学習履歴 (`history.json`) | 同上 | 同上 | 同上 |
 
 書き込みは最終更新 2 秒後にデバウンスフラッシュされ、窓を閉じるタイミングでも必ずフラッシュされます。
 
@@ -134,12 +166,13 @@ external_path = ""
 
 - Go 1.23 以降 (リポジトリには `.mise.toml` を同梱しています)
 - Node.js 22 以降
-- `libgtk-3-dev` と `libwebkit2gtk-4.1-dev` 相当のパッケージ (Arch なら `webkit2gtk-4.1`)
+- Linux のみ: `libgtk-3-dev` と `libwebkit2gtk-4.1-dev` 相当のパッケージ (Arch なら `webkit2gtk-4.1`)。Windows/macOS は追加パッケージ不要 (macOS ビルドは Xcode command line tools)
 - `https://skk-dev.github.io/dict/` にアクセスできるネットワーク環境 (初回のみ)
 
 ```sh
 cd frontend && npm run build && cd ..   # 辞書取得 (~50MB) + dist 生成。2 回目以降は辞書をスキップ
-go run github.com/wailsapp/wails/v2/cmd/wails@v2.10.2 build -tags webkit2_41 -clean
+go run github.com/wailsapp/wails/v2/cmd/wails@v2.10.2 build -tags webkit2_41 -clean   # Linux
+# go run ... build -clean -platform windows/amd64                                     # Windows
 install -Dm755 build/bin/wl-skk ~/.local/bin/wl-skk
 ```
 
@@ -163,7 +196,7 @@ go test ./...
 
 ## デプロイ
 
-`v*` タグを push すると GitHub Actions が linux/amd64 と linux/arm64 のバイナリをビルドし、draft リリースを作成します (`.github/workflows/release.yml`)。
+`v*` タグを push すると GitHub Actions が linux/amd64・linux/arm64・windows/amd64・windows/arm64・darwin/arm64 のバイナリをビルドし、draft リリースを作成します (`.github/workflows/release.yml`)。
 
 ## アーキテクチャ
 

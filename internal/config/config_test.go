@@ -43,6 +43,10 @@ auto_paste = true
 auto_paste_delay_ms = 120
 paste_key = "ctrl+v"
 
+[hotkey]
+enabled = false
+accelerator = "Ctrl+Alt+J"
+
 [dictionary]
 external_path = "/tmp/SKK-JISYO.L.json"
 `
@@ -53,6 +57,9 @@ external_path = "/tmp/SKK-JISYO.L.json"
 	}
 	if cfg.Clipboard.Backend != "wails" || !cfg.Clipboard.AutoPaste || cfg.Clipboard.AutoPasteDelayMs != 120 || cfg.Clipboard.PasteKey != "ctrl+v" {
 		t.Fatalf("clipboard config not applied: %+v", cfg.Clipboard)
+	}
+	if cfg.Hotkey.Enabled || cfg.Hotkey.Accelerator != "Ctrl+Alt+J" {
+		t.Fatalf("hotkey config not applied: %+v", cfg.Hotkey)
 	}
 	if cfg.Dictionary.ExternalPath != "/tmp/SKK-JISYO.L.json" {
 		t.Fatalf("dictionary config not applied: %+v", cfg.Dictionary)

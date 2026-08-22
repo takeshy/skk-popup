@@ -7,7 +7,9 @@ import (
 
 	"github.com/takeshy/wl-skk-popup/internal/clipboard"
 	"github.com/takeshy/wl-skk-popup/internal/config"
+	"github.com/takeshy/wl-skk-popup/internal/desktop"
 	"github.com/takeshy/wl-skk-popup/internal/dict"
+	"github.com/takeshy/wl-skk-popup/internal/hotkey"
 	"github.com/takeshy/wl-skk-popup/internal/ipc"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -16,10 +18,12 @@ import (
 // is shown/hidden on demand. Exported methods are exposed to the
 // frontend as bindings.
 type App struct {
-	ctx    context.Context
-	cfg    *config.Config
-	store  *dict.Store
-	copier *clipboard.Copier
+	ctx       context.Context
+	cfg       *config.Config
+	store     *dict.Store
+	copier    *clipboard.Copier
+	desktop   desktop.Platform
+	hotkeyMgr *hotkey.Manager
 
 	mu             sync.Mutex
 	visible        bool
@@ -37,6 +41,17 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.copier = clipboard.New(a.cfg.Clipboard.Backend, ctx)
+	a.desktop = desktop.New()
+
+	if a.cfg.Hotkey.Enabled {
+		mgr, err := hotkey.Start(a.cfg.Hotkey.Accelerator, a.TogglePopup)
+		if err != nil {
+			// Not fatal: the popup stays reachable via `wl-skk toggle`.
+			wailsruntime.LogError(ctx, "hotkey: "+err.Error())
+		} else {
+			a.hotkeyMgr = mgr
+		}
+	}
 
 	store, err := dict.NewStore()
 	if err != nil {
@@ -65,6 +80,9 @@ func (a *App) startup(ctx context.Context) {
 
 // shutdown flushes pending writes and closes the socket.
 func (a *App) shutdown(ctx context.Context) {
+	if a.hotkeyMgr != nil {
+		a.hotkeyMgr.Stop()
+	}
 	if a.ipcServer != nil {
 		a.ipcServer.Close()
 	}
@@ -113,6 +131,11 @@ func (a *App) ShowPopup() {
 	a.visible = true
 	a.mu.Unlock()
 
+	// Capture who had focus before our window takes it (no-op on Linux,
+	// where the compositor tracks this for us).
+	if a.desktop != nil {
+		a.desktop.RememberFocus()
+	}
 	wailsruntime.WindowShow(a.ctx)
 	wailsruntime.EventsEmit(a.ctx, "popup:shown")
 }
@@ -136,12 +159,17 @@ func (a *App) HidePopup() {
 		a.store.Flush()
 	}
 	wailsruntime.WindowHide(a.ctx)
+	if a.desktop == nil {
+		return
+	}
 	if a.cfg.Window.RestoreFocus || doPaste {
-		clipboard.FocusCurrentOrLast()
+		a.desktop.RestoreFocus()
 	}
 	if doPaste {
 		time.Sleep(time.Duration(a.cfg.Clipboard.AutoPasteDelayMs) * time.Millisecond)
-		_ = clipboard.Paste(a.cfg.Clipboard.PasteKey)
+		if err := a.desktop.PasteKeys(a.cfg.Clipboard.PasteKey); err != nil {
+			wailsruntime.LogError(a.ctx, "paste: "+err.Error())
+		}
 	}
 }
 

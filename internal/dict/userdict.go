@@ -1,5 +1,6 @@
 // Package dict persists the user dictionary and candidate history as
-// JSON files under $XDG_DATA_HOME/wl-skk.
+// JSON files under the per-user data directory ($XDG_DATA_HOME/wl-skk on
+// Linux; see dataDir for Windows/macOS).
 //
 // Writes are debounced (flushed 2 seconds after the last update) and are
 // always flushed when the popup hides. All writes go through a temporary
@@ -10,6 +11,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -30,16 +32,31 @@ type Store struct {
 	timer         *time.Timer
 }
 
+// dataDir returns the per-user data directory:
+// $XDG_DATA_HOME/wl-skk (or ~/.local/share/wl-skk) on Linux,
+// %LocalAppData%/wl-skk on Windows, and
+// ~/Library/Application Support/wl-skk on macOS.
 func dataDir() string {
-	base := os.Getenv("XDG_DATA_HOME")
-	if base == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return ""
-		}
-		base = filepath.Join(home, ".local", "share")
+	if base := os.Getenv("XDG_DATA_HOME"); base != "" {
+		return filepath.Join(base, "wl-skk")
 	}
-	return filepath.Join(base, "wl-skk")
+	switch runtime.GOOS {
+	case "windows":
+		if base := os.Getenv("LOCALAPPDATA"); base != "" {
+			return filepath.Join(base, "wl-skk")
+		}
+	case "darwin":
+		home, err := os.UserHomeDir()
+		if err == nil {
+			return filepath.Join(home, "Library", "Application Support", "wl-skk")
+		}
+	default:
+		home, err := os.UserHomeDir()
+		if err == nil {
+			return filepath.Join(home, ".local", "share", "wl-skk")
+		}
+	}
+	return ""
 }
 
 // NewStore creates a store rooted at $XDG_DATA_HOME/wl-skk.

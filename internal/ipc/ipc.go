@@ -10,14 +10,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 )
 
-// SocketPath returns $XDG_RUNTIME_DIR/wl-skk.sock, falling back to
-// /tmp/wl-skk-$UID.sock when XDG_RUNTIME_DIR is not set.
+// SocketPath returns the IPC socket path: $XDG_RUNTIME_DIR/wl-skk.sock on
+// Linux, /tmp/wl-skk-$UID.sock as a Linux fallback, and a temp-directory
+// path on Windows (Go's unix socket support works on Windows 10+).
 func SocketPath() string {
 	if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
 		return filepath.Join(dir, "wl-skk.sock")
+	}
+	if runtime.GOOS == "windows" {
+		return filepath.Join(os.TempDir(), "wl-skk.sock")
 	}
 	return fmt.Sprintf("/tmp/wl-skk-%s.sock", strconv.Itoa(os.Getuid()))
 }

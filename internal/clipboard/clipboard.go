@@ -1,5 +1,6 @@
-// Package clipboard copies text to the Wayland clipboard, preferring
-// wl-clipboard over the Wails runtime binding.
+// Package clipboard copies text to the system clipboard, preferring
+// wl-clipboard over the Wails runtime binding. Paste keystroke synthesis
+// and focus restoration live in internal/desktop.
 package clipboard
 
 import (
@@ -64,27 +65,3 @@ func (c *Copier) Copy(text string) error {
 type errNoBackend struct{}
 
 func (errNoBackend) Error() string { return "no clipboard backend available" }
-
-// Paste sends the configured paste shortcut to whatever window has
-// keyboard focus, via wtype.
-//
-// There is no single paste shortcut that works everywhere: GTK/Qt widgets
-// and browsers use Ctrl+V, but most Linux terminal emulators reserve
-// Ctrl+V for the shell/readline "insert next character literally" binding
-// and paste on Ctrl+Shift+V instead. key selects which one to send; see
-// config.toml's [clipboard] paste_key.
-func Paste(key string) error {
-	switch key {
-	case "ctrl+shift+v":
-		return exec.Command("wtype", "-M", "ctrl", "-M", "shift", "-k", "v", "-m", "shift", "-m", "ctrl").Run()
-	default:
-		return exec.Command("wtype", "-M", "ctrl", "-k", "v", "-m", "ctrl").Run()
-	}
-}
-
-// FocusCurrentOrLast asks Hyprland to restore focus to the previously
-// focused window. Failures are ignored: wl-skk must keep working outside
-// Hyprland.
-func FocusCurrentOrLast() {
-	_ = exec.Command("hyprctl", "dispatch", "focuscurrentorlast").Run()
-}

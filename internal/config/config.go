@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -30,10 +31,20 @@ type DictionaryConfig struct {
 	ExternalPath string
 }
 
+// HotkeyConfig registers an in-app global hotkey. This exists for
+// Windows, which has no compositor bind equivalent; on Linux the binding
+// belongs to Hyprland and on macOS to OS-level shortcut facilities
+// (Shortcuts.app etc.), so the default is disabled there.
+type HotkeyConfig struct {
+	Enabled     bool
+	Accelerator string // "Ctrl+Shift+K" style
+}
+
 type Config struct {
 	Window     WindowConfig
 	Clipboard  ClipboardConfig
 	Dictionary DictionaryConfig
+	Hotkey     HotkeyConfig
 }
 
 func Default() *Config {
@@ -44,23 +55,35 @@ func Default() *Config {
 			RestoreFocus: true,
 		},
 		Clipboard: ClipboardConfig{
-			Backend:          "wl-copy",
+			Backend:          defaultClipboardBackend(),
 			AutoPaste:        false,
 			AutoPasteDelayMs: 80,
 			PasteKey:         "ctrl+shift+v",
 		},
+		Hotkey: HotkeyConfig{
+			Enabled:     runtime.GOOS == "windows",
+			Accelerator: "Ctrl+Shift+K",
+		},
 	}
 }
 
-// Dir returns $XDG_CONFIG_HOME/wl-skk (or ~/.config/wl-skk).
+func defaultClipboardBackend() string {
+	if runtime.GOOS == "linux" {
+		return "wl-copy"
+	}
+	// wl-clipboard does not exist on Windows/macOS; use the Wails
+	// runtime binding (Win32 clipboard / NSPasteboard).
+	return "wails"
+}
+
+// Dir returns the per-user configuration directory:
+// $XDG_CONFIG_HOME/wl-skk (or ~/.config/wl-skk) on Linux,
+// %AppData%/wl-skk on Windows, and ~/Library/Application Support/wl-skk
+// on macOS.
 func Dir() string {
-	base := os.Getenv("XDG_CONFIG_HOME")
-	if base == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return ""
-		}
-		base = filepath.Join(home, ".config")
+	base, err := os.UserConfigDir()
+	if err != nil {
+		return ""
 	}
 	return filepath.Join(base, "wl-skk")
 }
@@ -152,6 +175,17 @@ func (c *Config) apply(section, key, value string) {
 		switch key {
 		case "external_path":
 			c.Dictionary.ExternalPath = value
+		}
+	case "hotkey":
+		switch key {
+		case "enabled":
+			c.Hotkey.Enabled = value == "true"
+		case "accelerator", "shortcut":
+			if value != "" {
+				c.Hotkey.Accelerator = strings.Join(strings.FieldsFunc(value, func(r rune) bool {
+					return r == '+' || r == ' '
+				}), "+")
+			}
 		}
 	}
 }
