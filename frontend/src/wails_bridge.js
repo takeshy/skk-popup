@@ -4,7 +4,7 @@
 import { Call, Events } from "/wails/runtime.js";
 
 const call = (method, ...args) =>
-  Call.ByName(`github.com/takeshy/skk-popup.App.${method}`, ...args);
+  Call.ByName(`main.App.${method}`, ...args);
 
 globalThis.window.go = {
   main: {
