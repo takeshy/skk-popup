@@ -24,7 +24,7 @@ func TestLoadDefaultsWhenMissing(t *testing.T) {
 	if !cfg.Window.RestoreFocus {
 		t.Fatal("restore_focus should default to true")
 	}
-	if cfg.Clipboard.Backend != "wl-copy" || cfg.Clipboard.AutoPaste || cfg.Clipboard.PasteKey != "ctrl+shift+v" {
+	if cfg.Clipboard.Backend != "wl-copy" || !cfg.Clipboard.AutoPaste || cfg.Clipboard.PasteKey != "ctrl+shift+v" {
 		t.Fatalf("unexpected clipboard defaults: %+v", cfg.Clipboard)
 	}
 }

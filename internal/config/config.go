@@ -56,7 +56,7 @@ func Default() *Config {
 		},
 		Clipboard: ClipboardConfig{
 			Backend:          defaultClipboardBackend(),
-			AutoPaste:        false,
+			AutoPaste:        true,
 			AutoPasteDelayMs: 80,
 			PasteKey:         "ctrl+shift+v",
 		},

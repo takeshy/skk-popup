@@ -129,7 +129,7 @@ restore_focus = true
 # "wl-copy" | "wails" (既定: Linux=wl-copy, Windows/macOS=wails)
 backend = "wl-copy"
 # コピー後に自動で貼り付けショートカットを送出 (Linux: wtype, Windows: SendInput, macOS: osascript)
-auto_paste = false
+auto_paste = true
 # 自動貼り付け時、フォーカス復帰から送出までの待ち時間 (ミリ秒)
 auto_paste_delay_ms = 80
 # "ctrl+v" | "ctrl+shift+v"

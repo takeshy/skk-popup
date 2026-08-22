@@ -8,6 +8,7 @@ package desktop
 import (
 	"fmt"
 	"sync"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -49,18 +50,6 @@ type winInput struct {
 	_       [8]byte
 }
 
-func sendKey(vk uint16, flags uint32) error {
-	var in winInput
-	in.msgType = inputKeyboard
-	in.ki.wVk = vk
-	in.ki.dwFlags = flags
-	ret, _, callErr := procSendInput.Call(1, uintptr(unsafe.Pointer(&in)), unsafe.Sizeof(in))
-	if ret == 0 {
-		return fmt.Errorf("SendInput failed: %v", callErr)
-	}
-	return nil
-}
-
 // Windows implements Platform for Microsoft Windows.
 type Windows struct {
 	mu       sync.Mutex
@@ -87,8 +76,14 @@ func (d *Windows) RememberFocus() {
 func (d *Windows) RestoreFocus() {
 	d.mu.Lock()
 	hwnd := d.prevHwnd
-	d.prevHwnd = 0
 	d.mu.Unlock()
+	d.activate(hwnd)
+}
+
+// activate brings the window that was active before the popup back to the
+// foreground. WindowHide is asynchronous on WebView2, so PasteKeys calls this
+// again immediately before injecting the shortcut.
+func (d *Windows) activate(hwnd uintptr) {
 	if hwnd == 0 {
 		return
 	}
@@ -101,29 +96,55 @@ func (d *Windows) RestoreFocus() {
 // PasteKeys sends the configured paste shortcut to whatever window has
 // keyboard focus.
 func (d *Windows) PasteKeys(shortcut string) error {
-	type keyStep struct {
-		vk    uint16
-		flags uint32
+	d.mu.Lock()
+	hwnd := d.prevHwnd
+	d.prevHwnd = 0
+	d.mu.Unlock()
+	if hwnd != 0 {
+		d.activate(hwnd)
+		// Give Windows a short opportunity to complete the foreground switch.
+		// This is separate from auto_paste_delay_ms, which starts before this
+		// final focus correction.
+		for i := 0; i < 10; i++ {
+			foreground, _, _ := procGetForegroundWindow.Call()
+			if foreground == hwnd {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+			d.activate(hwnd)
+		}
 	}
+
 	modifiers := []uint16{vkControl}
 	if shortcut == PasteCtrlShiftV {
 		// Windows terminals paste on Ctrl+Shift+V.
 		modifiers = append(modifiers, vkShift)
 	}
 
-	steps := make([]keyStep, 0, len(modifiers)*2+2)
-	for _, vk := range modifiers {
-		steps = append(steps, keyStep{vk: vk})
+	inputs := make([]winInput, 0, len(modifiers)*2+2)
+	addKey := func(vk uint16, flags uint32) {
+		var input winInput
+		input.msgType = inputKeyboard
+		input.ki.wVk = vk
+		input.ki.dwFlags = flags
+		inputs = append(inputs, input)
 	}
-	steps = append(steps, keyStep{vk: vkV}, keyStep{vk: vkV, flags: keyeventfKeyup})
+	for _, vk := range modifiers {
+		addKey(vk, 0)
+	}
+	addKey(vkV, 0)
+	addKey(vkV, keyeventfKeyup)
 	for i := len(modifiers) - 1; i >= 0; i-- {
-		steps = append(steps, keyStep{vk: modifiers[i], flags: keyeventfKeyup})
+		addKey(modifiers[i], keyeventfKeyup)
 	}
 
-	for _, step := range steps {
-		if err := sendKey(step.vk, step.flags); err != nil {
-			return err
-		}
+	ret, _, callErr := procSendInput.Call(
+		uintptr(len(inputs)),
+		uintptr(unsafe.Pointer(&inputs[0])),
+		unsafe.Sizeof(inputs[0]),
+	)
+	if ret != uintptr(len(inputs)) {
+		return fmt.Errorf("SendInput sent %d of %d events: %v", ret, len(inputs), callErr)
 	}
 	return nil
 }
