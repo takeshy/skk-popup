@@ -1,0 +1,20 @@
+version: '3'
+
+tasks:
+  frontend:
+    dir: frontend
+    sources:
+      - index.html
+      - src/**/*
+      - package.json
+      - ../scripts/build_dictionary.js
+      - ../dictionary_sources.json
+    generates:
+      - dist/**/*
+    cmds:
+      - npm run build
+
+  tidy:
+    internal: true
+    cmds:
+      - go mod tidy

@@ -3,13 +3,13 @@ package main
 import (
 	"embed"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/takeshy/skk-popup/internal/assetserver"
+	"github.com/takeshy/skk-popup/internal/config"
 	"github.com/takeshy/skk-popup/internal/ipc"
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	wailsassetserver "github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 //go:embed all:frontend/dist
@@ -34,43 +34,42 @@ func main() {
 // runDaemon starts the resident process. A second daemon exits without
 // touching the running one.
 func runDaemon() {
-	if !bindingsMode {
-		// Wails' `-tags bindings` sub-build runs this binary just to have
-		// wails.Run() dump the bound methods and exit; it never reaches
-		// OnStartup, so the multi-instance guard would otherwise reject it
-		// whenever a real daemon is already running and break bindings
-		// generation without actually regenerating anything.
-		socketPath := ipc.SocketPath()
-		if ipc.IsDaemonRunning(socketPath) {
-			fmt.Fprintln(os.Stderr, "skk-popup: daemon is already running")
-			os.Exit(1)
-		}
+	socketPath := ipc.SocketPath()
+	if ipc.IsDaemonRunning(socketPath) {
+		fmt.Fprintln(os.Stderr, "skk-popup: daemon is already running")
+		os.Exit(1)
 	}
 
-	app := NewApp()
-
-	err := wails.Run(&options.App{
-		Title:             "skk-popup",
-		Width:             app.cfg.Window.Width,
-		Height:            app.cfg.Window.Height,
-		Frameless:         true,
-		AlwaysOnTop:       true,
-		StartHidden:       true,
-		HideWindowOnClose: true,
-		BackgroundColour:  &options.RGBA{R: 0, G: 0, B: 0, A: 0},
-		AssetServer: &wailsassetserver.Options{
-			Assets:     assets,
-			Middleware: assetserver.DictionaryMiddleware(app.cfg.Dictionary.ExternalPath),
-		},
-		OnStartup:  app.startup,
-		OnShutdown: app.shutdown,
-		Bind: []interface{}{
-			app,
+	cfg := config.Load()
+	assetHandler := assetserver.DictionaryMiddleware(cfg.Dictionary.ExternalPath)(
+		application.AssetFileServerFS(assets),
+	)
+	wailsApp := application.New(application.Options{
+		Name:        "skk-popup",
+		Description: "SKK popup input window",
+		Assets: application.AssetOptions{
+			Handler: assetHandler,
 		},
 	})
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "skk-popup:", err)
-		os.Exit(1)
+	app := NewApp(wailsApp, cfg)
+	wailsApp.RegisterService(application.NewService(app))
+
+	window := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:             "popup",
+		Title:            "skk-popup",
+		Width:            cfg.Window.Width,
+		Height:           cfg.Window.Height,
+		Frameless:        true,
+		AlwaysOnTop:      true,
+		Hidden:           true,
+		BackgroundType:   application.BackgroundTypeTransparent,
+		BackgroundColour: application.NewRGBA(0, 0, 0, 0),
+		URL:              "/",
+	})
+	app.SetWindow(window)
+
+	if err := wailsApp.Run(); err != nil {
+		log.Fatal(err)
 	}
 }
 

@@ -4,28 +4,25 @@
 package clipboard
 
 import (
-	"context"
 	"os/exec"
 	"strings"
 	"sync"
-
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type Copier struct {
 	mu      sync.Mutex
 	backend string
-	ctx     context.Context
+	setText func(string) bool
 	lastCmd *exec.Cmd
 }
 
-// New creates a copier. ctx is the Wails app context; it may be nil when
-// only the wl-copy backend is used.
-func New(backend string, ctx context.Context) *Copier {
+// New creates a copier. setText provides the native clipboard implementation;
+// it may be nil when only wl-copy is used.
+func New(backend string, setText func(string) bool) *Copier {
 	if backend != "wails" {
 		backend = "wl-copy"
 	}
-	return &Copier{backend: backend, ctx: ctx}
+	return &Copier{backend: backend, setText: setText}
 }
 
 // Copy places text on the clipboard.
@@ -56,10 +53,10 @@ func (c *Copier) Copy(text string) error {
 			return nil
 		}
 	}
-	if c.ctx == nil {
+	if c.setText == nil || !c.setText(text) {
 		return errNoBackend{}
 	}
-	return wailsruntime.ClipboardSetText(c.ctx, text)
+	return nil
 }
 
 type errNoBackend struct{}

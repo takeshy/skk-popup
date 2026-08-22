@@ -1,12 +1,12 @@
 {
-  "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "skk-popup",
-  "outputfilename": "skk-popup",
-  "frontend:dir": "frontend",
-  "frontend:install": "",
-  "frontend:build": "npm run build",
-  "author": {
-    "name": "takeshy",
-    "email": ""
-  }
+  "info": {
+    "companyName": "takeshy",
+    "productName": "skk-popup",
+    "productIdentifier": "takeshy.skk-popup",
+    "description": "SKK popup input window",
+    "copyright": "Copyright takeshy",
+    "comments": "SKK popup input window",
+    "version": "0.8.0"
+  },
+  "fileAssociations": []
 }

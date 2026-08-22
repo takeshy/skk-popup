@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.8.0"
+	},
+	"info": {
+		"0000": {
+			"ProductVersion": "0.8.0",
+			"CompanyName": "takeshy",
+			"FileDescription": "SKK popup input window",
+			"LegalCopyright": "Copyright takeshy",
+			"ProductName": "skk-popup",
+			"Comments": "SKK popup input window"
+		}
+	}
+}

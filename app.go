@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -11,19 +12,20 @@ import (
 	"github.com/takeshy/skk-popup/internal/dict"
 	"github.com/takeshy/skk-popup/internal/hotkey"
 	"github.com/takeshy/skk-popup/internal/ipc"
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // App is the Wails application: a permanently resident popup window that
 // is shown/hidden on demand. Exported methods are exposed to the
 // frontend as bindings.
 type App struct {
-	ctx       context.Context
-	cfg       *config.Config
-	store     *dict.Store
-	copier    *clipboard.Copier
-	desktop   desktop.Platform
-	hotkeyMgr *hotkey.Manager
+	application *application.App
+	window      *application.WebviewWindow
+	cfg         *config.Config
+	store       *dict.Store
+	copier      *clipboard.Copier
+	desktop     desktop.Platform
+	hotkeyMgr   *hotkey.Manager
 
 	mu             sync.Mutex
 	visible        bool
@@ -33,21 +35,22 @@ type App struct {
 	ipcServer      *ipc.Server
 }
 
-func NewApp() *App {
-	return &App{cfg: config.Load()}
+func NewApp(wailsApp *application.App, cfg *config.Config) *App {
+	return &App{application: wailsApp, cfg: cfg}
 }
 
-// startup is called by Wails once the runtime context is available.
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
-	a.copier = clipboard.New(a.cfg.Clipboard.Backend, ctx)
+func (a *App) SetWindow(window *application.WebviewWindow) { a.window = window }
+
+// ServiceStartup is called by Wails once all services are registered.
+func (a *App) ServiceStartup(_ context.Context, _ application.ServiceOptions) error {
+	a.copier = clipboard.New(a.cfg.Clipboard.Backend, a.application.Clipboard.SetText)
 	a.desktop = desktop.New()
 
 	if a.cfg.Hotkey.Enabled {
 		mgr, err := hotkey.Start(a.cfg.Hotkey.Accelerator, a.TogglePopup)
 		if err != nil {
 			// Not fatal: the popup stays reachable via `skk-popup toggle`.
-			wailsruntime.LogError(ctx, "hotkey: "+err.Error())
+			log.Printf("hotkey: %v", err)
 		} else {
 			a.hotkeyMgr = mgr
 		}
@@ -55,7 +58,7 @@ func (a *App) startup(ctx context.Context) {
 
 	store, err := dict.NewStore()
 	if err != nil {
-		wailsruntime.LogError(ctx, "dict store: "+err.Error())
+		log.Printf("dict store: %v", err)
 	} else {
 		a.store = store
 	}
@@ -66,20 +69,21 @@ func (a *App) startup(ctx context.Context) {
 		// Another daemon won the race for the socket. Staying resident
 		// without IPC would leave an orphaned process nothing could ever
 		// show/hide/toggle/quit, so back out and let the winner run.
-		wailsruntime.LogError(ctx, "ipc server: "+err.Error())
-		wailsruntime.Quit(ctx)
-		return
+		log.Printf("ipc server: %v", err)
+		a.application.Quit()
+		return nil
 	}
 	a.ipcServer = server
 	server.SetHandler(a.handleCommand)
 	server.SetQuitCallback(func() {
-		wailsruntime.Quit(ctx)
+		a.application.Quit()
 	})
 	go server.Serve()
+	return nil
 }
 
-// shutdown flushes pending writes and closes the socket.
-func (a *App) shutdown(ctx context.Context) {
+// ServiceShutdown flushes pending writes and closes the socket.
+func (a *App) ServiceShutdown() error {
 	if a.hotkeyMgr != nil {
 		a.hotkeyMgr.Stop()
 	}
@@ -89,6 +93,7 @@ func (a *App) shutdown(ctx context.Context) {
 	if a.store != nil {
 		a.store.Flush()
 	}
+	return nil
 }
 
 func (a *App) handleCommand(command string) error {
@@ -136,8 +141,8 @@ func (a *App) ShowPopup() {
 	if a.desktop != nil {
 		a.desktop.RememberFocus()
 	}
-	wailsruntime.WindowShow(a.ctx)
-	wailsruntime.EventsEmit(a.ctx, "popup:shown")
+	a.window.Show()
+	a.application.Event.Emit("popup:shown")
 }
 
 // HidePopup hides the window (the daemon keeps running), flushing any
@@ -158,7 +163,7 @@ func (a *App) HidePopup() {
 	if a.store != nil {
 		a.store.Flush()
 	}
-	wailsruntime.WindowHide(a.ctx)
+	a.window.Hide()
 	if a.desktop == nil {
 		return
 	}
@@ -168,7 +173,7 @@ func (a *App) HidePopup() {
 	if doPaste {
 		time.Sleep(time.Duration(a.cfg.Clipboard.AutoPasteDelayMs) * time.Millisecond)
 		if err := a.desktop.PasteKeys(a.cfg.Clipboard.PasteKey); err != nil {
-			wailsruntime.LogError(a.ctx, "paste: "+err.Error())
+			log.Printf("paste: %v", err)
 		}
 	}
 }

@@ -171,19 +171,21 @@ external_path = ""
 
 ```sh
 cd frontend && npm run build && cd ..   # 辞書取得 (~50MB) + dist 生成。2 回目以降は辞書をスキップ
-go run github.com/wailsapp/wails/v2/cmd/wails@v2.10.2 build -tags webkit2_41 -clean   # Linux
-# go run ... build -clean -platform windows/amd64                                     # Windows
-install -Dm755 build/bin/skk-popup ~/.local/bin/skk-popup
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.12
+wails3 task linux:build ARCH=amd64       # Linux
+# wails3 task windows:build ARCH=amd64   # Windows
+# wails3 package GOOS=windows GOARCH=arm64 FORMAT=msix  # Windows MSIX
+install -Dm755 bin/skk-popup ~/.local/bin/skk-popup
 ```
 
-- `-tags webkit2_41` は WebKit2GTK 4.1 向けのビルドタグです (Ubuntu 24.04 / Arch など)。4.0 のみの環境では外してください。
+- LinuxビルドはWails v3の `gtk3` タグを使用し、WebKit2GTK 4.1環境との互換性を維持します。
 - 使用する辞書はルートの `dictionary_sources.json` で変更できます。再生成する場合は `node scripts/build_dictionary.js --force`。
 - バイナリは約 13MB の辞書を embed します。肥大が気になる場合は `dictionary.external_path` に外部ファイルを指定するとそちらが優先されます。
 
 開発モード:
 
 ```sh
-go run github.com/wailsapp/wails/v2/cmd/wails@v2.10.2 dev -tags webkit2_41
+wails3 dev
 ```
 
 テスト:

@@ -3,7 +3,9 @@ frontend/dist/*
 !frontend/dist/.gitkeep
 frontend/public/dictionary.json
 frontend/wailsjs/
+frontend/bindings/
 build/bin/
+bin/
 package.json.md5
 
 # Logs
