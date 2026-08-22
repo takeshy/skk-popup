@@ -34,10 +34,17 @@ func main() {
 // runDaemon starts the resident process. A second daemon exits without
 // touching the running one.
 func runDaemon() {
-	socketPath := ipc.SocketPath()
-	if ipc.IsDaemonRunning(socketPath) {
-		fmt.Fprintln(os.Stderr, "wl-skk: daemon is already running")
-		os.Exit(1)
+	if !bindingsMode {
+		// Wails' `-tags bindings` sub-build runs this binary just to have
+		// wails.Run() dump the bound methods and exit; it never reaches
+		// OnStartup, so the multi-instance guard would otherwise reject it
+		// whenever a real daemon is already running and break bindings
+		// generation without actually regenerating anything.
+		socketPath := ipc.SocketPath()
+		if ipc.IsDaemonRunning(socketPath) {
+			fmt.Fprintln(os.Stderr, "wl-skk: daemon is already running")
+			os.Exit(1)
+		}
 	}
 
 	app := NewApp()
