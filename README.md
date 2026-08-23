@@ -4,6 +4,8 @@ Wails 製の常駐型 SKK ポップアップ入力窓。ホットキーで呼び
 
 [chrome-skk-lite](https://github.com/takeshy/chrome-skk-lite) の「クリップボード入力窓」(`Ctrl+Shift+K`) をブラウザ外でも使えるようにした、独立したデスクトップアプリです。Chromium の起動モード (Ozone / Wayland) やバージョンに一切依存しません。
 
+<img src="assets/skk-popup.gif" alt="skk-popup のデモ" width="600">
+
 ## 動作要件
 
 | OS | 必要なもの |
