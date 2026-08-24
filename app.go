@@ -124,7 +124,7 @@ func (a *App) IsVisible() bool {
 	return a.visible
 }
 
-// ShowPopup shows the window and tells the frontend to reset its buffer
+// ShowPopup shows the window and tells the frontend to restore its session
 // and focus the input. Requests received before NotifyReady are queued.
 func (a *App) ShowPopup() {
 	a.mu.Lock()

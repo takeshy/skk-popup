@@ -10,7 +10,7 @@ const DICT = {
 class FakeElement {
   constructor(id) {
     this.id = id;
-    this.value = "";
+    this._value = "";
     this.textContent = "";
     this.dataset = {};
     this.listeners = {};
@@ -19,6 +19,15 @@ class FakeElement {
     this.rangeTextUpdates = 0;
     this.scrollTop = 0;
     this.scrollHeight = 1000;
+  }
+
+  get value() {
+    return this._value;
+  }
+
+  set value(value) {
+    // textarea's API value uses LF even when clipboard text uses CRLF.
+    this._value = String(value).replace(/\r\n?/g, "\n");
   }
 
   addEventListener(type, listener) {
@@ -318,6 +327,15 @@ async function runTest(name, fn) {
     assert.equal(input.value, "abXYef");
   });
 
+  await runTest("typing after a CRLF paste uses the visual caret position", async () => {
+    pasteText("ab\r\ncd");
+    assert.equal(input.value, "ab\ncd");
+
+    input.selectionStart = input.selectionEnd = 4;
+    await type("ka");
+    assert.equal(input.value, "ab\ncかd");
+  });
+
   await runTest("okuri conversion auto-selects after okuri kana", async () => {
     await type("MoTi");
     assert.equal(input.value, "持ち");
@@ -523,6 +541,16 @@ async function runTest(name, fn) {
     assert.equal(input.value, "←↓↑→　");
   });
 
+  await runTest("reopening without copying preserves the input", async () => {
+    await type("Kanji");
+    const draft = input.value;
+    elements.close.listeners.click();
+    assert.equal(hidden, true);
+
+    emitPopupShown();
+    assert.equal(input.value, draft);
+  });
+
   await runTest("copy sends committed text to the backend and hides without window.close", async () => {
     await type("Kanji");
     await press(" ");
@@ -533,7 +561,7 @@ async function runTest(name, fn) {
     assert.equal(hidden, true);
   });
 
-  await runTest("popup:shown clears the buffer for a fresh session", async () => {
+  await runTest("popup:shown clears the buffer after a successful copy", async () => {
     await type("Kanji");
     await press("l");
     assert.equal(elements.mode.textContent, "SKK OFF");

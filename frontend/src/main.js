@@ -40,6 +40,7 @@
   let candidateHistory = {};
   let systemDict = {};
   let registerKey = "";
+  let clearOnNextShow = false;
   const lookupCache = new Map();
 
   // ---- Wails bridge -------------------------------------------------------
@@ -1342,6 +1343,7 @@
 
     try {
       await copyToClipboard(text);
+      clearOnNextShow = true;
       statusEl.textContent = "Copied.";
       setTimeout(hidePopupWindow, 100);
     } catch {
@@ -1361,6 +1363,16 @@
     state.text = "";
     state.cursor = 0;
     state.selectionEnd = 0;
+    render();
+    inputEl.focus();
+  }
+
+  function restoreForReopenedSession() {
+    if (clearOnNextShow) {
+      clearOnNextShow = false;
+      resetForNewSession();
+      return;
+    }
     render();
     inputEl.focus();
   }
@@ -1566,7 +1578,10 @@
     e.preventDefault();
     syncSelectionFromInput();
 
-    const pastedText = e.clipboardData?.getData("text/plain") ?? "";
+    // A textarea normalizes CRLF/CR line endings to LF. Keep the model in the
+    // same form or every Windows-style newline shifts its cursor offsets by
+    // one compared with selectionStart/selectionEnd.
+    const pastedText = (e.clipboardData?.getData("text/plain") ?? "").replace(/\r\n?/g, "\n");
 
     if (isAbbrevMode()) {
       closeAbbrev(state.abbrev);
@@ -1815,7 +1830,7 @@
     });
 
   globalThis.window?.runtime?.EventsOn?.("popup:shown", () => {
-    resetForNewSession();
+    restoreForReopenedSession();
   });
 
   render();
