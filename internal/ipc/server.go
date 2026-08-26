@@ -3,7 +3,6 @@ package ipc
 import (
 	"fmt"
 	"net"
-	"os"
 	"strings"
 	"time"
 )
@@ -12,22 +11,23 @@ import (
 // itself and never reaches the handler.
 type Handler func(command string) error
 
-// Server listens on a Unix domain socket and dispatches commands.
+// Server listens on the platform's local IPC transport and dispatches commands.
 type Server struct {
 	listener net.Listener
+	endpoint string
 	handler  Handler
 	onQuit   func()
 	closed   chan struct{}
 }
 
-// NewServer creates a listener on socketPath. The caller must ensure no
-// other daemon owns the socket (see RemoveStaleSocket).
-func NewServer(socketPath string) (*Server, error) {
-	listener, err := net.Listen("unix", socketPath)
+// NewServer creates a listener on endpoint. The caller must ensure no other
+// daemon owns it (see PrepareEndpoint).
+func NewServer(endpoint string) (*Server, error) {
+	listener, err := listen(endpoint)
 	if err != nil {
 		return nil, err
 	}
-	return &Server{listener: listener, closed: make(chan struct{})}, nil
+	return &Server{listener: listener, endpoint: endpoint, closed: make(chan struct{})}, nil
 }
 
 // SetHandler installs the command handler used once the app context is up.
@@ -67,7 +67,7 @@ func (s *Server) Close() {
 		close(s.closed)
 	}
 	_ = s.listener.Close()
-	_ = os.Remove(s.listener.Addr().String())
+	cleanup(s.endpoint)
 }
 
 func (s *Server) handleConn(conn net.Conn) {

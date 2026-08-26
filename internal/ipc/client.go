@@ -2,16 +2,14 @@ package ipc
 
 import (
 	"fmt"
-	"net"
-	"os"
 	"strings"
 	"time"
 )
 
 // IsDaemonRunning reports whether another skk-popup daemon is accepting
-// commands on the socket.
-func IsDaemonRunning(socketPath string) bool {
-	conn, err := net.DialTimeout("unix", socketPath, 500*time.Millisecond)
+// commands on the local IPC endpoint.
+func IsDaemonRunning(endpoint string) bool {
+	conn, err := dial(endpoint, 500*time.Millisecond)
 	if err != nil {
 		return false
 	}
@@ -19,14 +17,14 @@ func IsDaemonRunning(socketPath string) bool {
 	return true
 }
 
-// RemoveStaleSocket deletes a leftover socket file that no daemon is
-// serving. It returns the path even if removal was unnecessary.
-func RemoveStaleSocket(socketPath string) string {
-	if IsDaemonRunning(socketPath) {
-		return socketPath
+// PrepareEndpoint removes a leftover endpoint that no daemon is serving.
+// Named pipes require no cleanup. It returns endpoint for convenient chaining.
+func PrepareEndpoint(endpoint string) string {
+	if IsDaemonRunning(endpoint) {
+		return endpoint
 	}
-	_ = os.Remove(socketPath)
-	return socketPath
+	cleanup(endpoint)
+	return endpoint
 }
 
 // RunClientCommand sends a single command to the daemon and prints the
@@ -36,8 +34,8 @@ func RunClientCommand(command string) error {
 	if !IsValidCommand(command) {
 		return fmt.Errorf("unknown command %q (expected toggle|show|hide|quit)", command)
 	}
-	socketPath := SocketPath()
-	conn, err := net.DialTimeout("unix", socketPath, time.Second)
+	endpoint := Endpoint()
+	conn, err := dial(endpoint, time.Second)
 	if err != nil {
 		return fmt.Errorf("skk-popup daemon is not running (%v)", err)
 	}

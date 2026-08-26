@@ -55,6 +55,7 @@ exec-once = uwsm app -- skk-popup
 ホットキーはアプリ自身が `RegisterHotKey` で登録します(既定 `Ctrl+Shift+K`、`[hotkey]` セクションで変更・無効化可能)。自動起動はスタートアップフォルダにショートカットを置いてください (`Win+R` → `shell:startup`)。
 
 フォーカス復帰は表示直前の前景ウィンドウを記憶して `SetForegroundWindow` で戻します。
+常駐プロセスとの IPC には、MSIX パッケージでも利用できるセッションローカルの Windows 名前付きパイプを使用します。
 
 ### macOS
 

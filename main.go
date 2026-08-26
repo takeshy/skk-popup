@@ -34,8 +34,8 @@ func main() {
 // runDaemon starts the resident process. A second daemon exits without
 // touching the running one.
 func runDaemon() {
-	socketPath := ipc.SocketPath()
-	if ipc.IsDaemonRunning(socketPath) {
+	endpoint := ipc.Endpoint()
+	if ipc.IsDaemonRunning(endpoint) {
 		fmt.Fprintln(os.Stderr, "skk-popup: daemon is already running")
 		os.Exit(1)
 	}

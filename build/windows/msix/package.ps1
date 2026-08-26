@@ -4,7 +4,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$root = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
+$root = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).ProviderPath
 $config = Get-Content (Join-Path $root "wails.json") -Raw | ConvertFrom-Json
 $version = "$($config.info.version).0"
 $msixArch = if ($Arch -eq "amd64") { "x64" } else { "arm64" }

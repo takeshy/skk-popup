@@ -63,10 +63,10 @@ func (a *App) ServiceStartup(_ context.Context, _ application.ServiceOptions) er
 		a.store = store
 	}
 
-	socketPath := ipc.RemoveStaleSocket(ipc.SocketPath())
-	server, err := ipc.NewServer(socketPath)
+	endpoint := ipc.PrepareEndpoint(ipc.Endpoint())
+	server, err := ipc.NewServer(endpoint)
 	if err != nil {
-		// Another daemon won the race for the socket. Staying resident
+		// Another daemon won the race for the endpoint. Staying resident
 		// without IPC would leave an orphaned process nothing could ever
 		// show/hide/toggle/quit, so back out and let the winner run.
 		log.Printf("ipc server: %v", err)
