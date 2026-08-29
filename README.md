@@ -16,7 +16,9 @@ Wails 製の常駐型 SKK ポップアップ入力窓。ホットキーで呼び
 
 ## インストール
 
-GitHub Releases からバイナリをダウンロードしてください。
+Windows 版は [Microsoft Store](https://apps.microsoft.com/detail/9PNF2XK5S13N?hl=ja-jp&gl=JP&ocid=pdpshare) からインストールできます。
+
+そのほかの環境では GitHub Releases からバイナリをダウンロードしてください。
 
 ```sh
 # Linux
