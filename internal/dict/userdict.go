@@ -17,19 +17,22 @@ import (
 )
 
 const (
-	UserDictFile  = "userdict.json"
-	HistoryFile   = "history.json"
-	flushInterval = 2 * time.Second
+	UserDictFile     = "userdict.json"
+	HistoryFile      = "history.json"
+	InputHistoryFile = "input-history.json"
+	flushInterval    = 2 * time.Second
 )
 
 type Store struct {
-	mu            sync.Mutex
-	dir           string
-	userDictJSON  string
-	historyJSON   string
-	userDictDirty bool
-	historyDirty  bool
-	timer         *time.Timer
+	mu                sync.Mutex
+	dir               string
+	userDictJSON      string
+	historyJSON       string
+	inputHistoryJSON  string
+	userDictDirty     bool
+	historyDirty      bool
+	inputHistoryDirty bool
+	timer             *time.Timer
 }
 
 // dataDir returns the per-user data directory:
@@ -96,6 +99,16 @@ func (s *Store) LoadHistory() string {
 	return s.historyJSON
 }
 
+// LoadInputHistory returns the persisted clipboard input history JSON.
+func (s *Store) LoadInputHistory() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.inputHistoryJSON == "" {
+		s.inputHistoryJSON = readFileOrEmpty(filepath.Join(s.dir, InputHistoryFile), "[]")
+	}
+	return s.inputHistoryJSON
+}
+
 // SaveUserDict stages a user dictionary update; it is flushed after the
 // debounce interval.
 func (s *Store) SaveUserDict(data string) error {
@@ -123,6 +136,19 @@ func (s *Store) SaveHistory(data string) error {
 	return nil
 }
 
+// SaveInputHistory stages a clipboard input history update.
+func (s *Store) SaveInputHistory(data string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !json.Valid([]byte(data)) {
+		return os.ErrInvalid
+	}
+	s.inputHistoryJSON = data
+	s.inputHistoryDirty = true
+	s.scheduleFlushLocked()
+	return nil
+}
+
 // Flush writes any staged updates to disk immediately.
 func (s *Store) Flush() {
 	s.mu.Lock()
@@ -139,6 +165,11 @@ func (s *Store) Flush() {
 	if s.historyDirty {
 		if writeAtomic(filepath.Join(s.dir, HistoryFile), s.historyJSON) == nil {
 			s.historyDirty = false
+		}
+	}
+	if s.inputHistoryDirty {
+		if writeAtomic(filepath.Join(s.dir, InputHistoryFile), s.inputHistoryJSON) == nil {
+			s.inputHistoryDirty = false
 		}
 	}
 }

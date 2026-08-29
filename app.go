@@ -224,6 +224,34 @@ func (a *App) SaveHistory(data string) error {
 	return a.store.SaveHistory(data)
 }
 
+// LoadInputHistory returns the persisted clipboard input history JSON.
+func (a *App) LoadInputHistory() string {
+	if a.store == nil {
+		return "[]"
+	}
+	return a.store.LoadInputHistory()
+}
+
+// SaveInputHistory persists the clipboard input history JSON (debounced).
+func (a *App) SaveInputHistory(data string) error {
+	if a.store == nil {
+		return nil
+	}
+	return a.store.SaveInputHistory(data)
+}
+
+// ReadClipboard returns the current plain-text clipboard content.
+func (a *App) ReadClipboard() string {
+	if a.application == nil {
+		return ""
+	}
+	text, ok := a.application.Clipboard.Text()
+	if !ok {
+		return ""
+	}
+	return text
+}
+
 // CopyToClipboard places the confirmed text on the Wayland clipboard. It
 // arms the auto-paste step performed by HidePopup when enabled.
 func (a *App) CopyToClipboard(text string) error {

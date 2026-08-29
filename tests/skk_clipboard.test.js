@@ -65,10 +65,12 @@ const elements = {
 };
 
 let copiedText = "";
+let clipboardText = "";
 let hidden = false;
 let notifyReadyCount = 0;
 let savedUserDict = {};
 let savedHistory = {};
+let savedInputHistory = [];
 let popupShownListeners = [];
 
 globalThis.document = {
@@ -90,8 +92,18 @@ const fakeApp = {
   async SaveHistory(data) {
     savedHistory = JSON.parse(data);
   },
+  async LoadInputHistory() {
+    return "[]";
+  },
+  async SaveInputHistory(data) {
+    savedInputHistory = JSON.parse(data);
+  },
+  async ReadClipboard() {
+    return clipboardText;
+  },
   async CopyToClipboard(text) {
     copiedText = text;
+    clipboardText = text;
   },
   HidePopup() {
     hidden = true;
@@ -200,8 +212,9 @@ function pasteText(text) {
   return event;
 }
 
-function emitPopupShown() {
+async function emitPopupShown() {
   for (const listener of popupShownListeners) listener();
+  await flush();
 }
 
 async function resetWindow() {
@@ -547,7 +560,17 @@ async function runTest(name, fn) {
     elements.close.listeners.click();
     assert.equal(hidden, true);
 
-    emitPopupShown();
+    await emitPopupShown();
+    assert.equal(input.value, draft);
+  });
+
+  await runTest("reopening after Escape preserves the input", async () => {
+    pasteText("draft");
+    const draft = input.value;
+    await press("Escape");
+    assert.equal(hidden, true);
+
+    await emitPopupShown();
     assert.equal(input.value, draft);
   });
 
@@ -561,13 +584,44 @@ async function runTest(name, fn) {
     assert.equal(hidden, true);
   });
 
-  await runTest("popup:shown clears the buffer after a successful copy", async () => {
+  await runTest("a successful copy clears the buffer even if popup:shown was missed", async () => {
     await type("Kanji");
     await press("l");
     assert.equal(elements.mode.textContent, "SKK OFF");
-    emitPopupShown();
+    await press("Enter");
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    assert.equal(input.value, "");
+
+    await emitPopupShown();
     assert.equal(input.value, "");
     assert.equal(elements.mode.textContent, "SKK かな");
+  });
+
+  await runTest("ArrowUp recalls copied input and ArrowDown restores the draft", async () => {
+    pasteText("first entry");
+    await press("Enter");
+    await emitPopupShown();
+    pasteText("current draft");
+
+    await press("ArrowUp");
+    assert.equal(input.value, "first entry");
+    await press("ArrowDown");
+    assert.equal(input.value, "current draft");
+    assert.deepEqual(savedInputHistory.slice(-1), ["first entry"]);
+  });
+
+  await runTest("popup:shown adds an external clipboard value to input history", async () => {
+    clipboardText = "copied in another app";
+    await emitPopupShown();
+    pasteText("replacement input");
+
+    await press("ArrowUp");
+    assert.equal(input.value, "copied in another app");
+    assert.deepEqual(savedInputHistory.slice(-1), ["copied in another app"]);
+
+    const historyLength = savedInputHistory.length;
+    await emitPopupShown();
+    assert.equal(savedInputHistory.length, historyLength);
   });
 
   await press("Enter");

@@ -49,6 +49,26 @@ func TestStoreRejectsInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestStorePersistsInputHistory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "skk-popup")
+	s, err := NewStoreAt(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveInputHistory(`["first","second"]`); err != nil {
+		t.Fatal(err)
+	}
+	s.Flush()
+
+	reloaded, err := NewStoreAt(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := reloaded.LoadInputHistory(); got != `["first","second"]` {
+		t.Fatalf("input history roundtrip mismatch: %s", got)
+	}
+}
+
 func TestWriteAtomicLeavesNoTempFiles(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "out.json")

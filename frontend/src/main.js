@@ -35,12 +35,15 @@
     "]": "』"
   };
   const ASCII_PRINTABLE_RE = /^[ -~]$/;
+  const INPUT_HISTORY_LIMIT = 30;
 
   let userDict = {};
   let candidateHistory = {};
+  let inputHistory = [];
+  let inputHistoryIndex = -1;
+  let inputHistoryDraft = "";
   let systemDict = {};
   let registerKey = "";
-  let clearOnNextShow = false;
   const lookupCache = new Map();
 
   // ---- Wails bridge -------------------------------------------------------
@@ -67,10 +70,10 @@
     });
   }
 
-  function hidePopupWindow() {
+  async function hidePopupWindow() {
     const app = appBinding();
     if (app) {
-      void app.HidePopup();
+      await app.HidePopup();
     } else {
       window.close();
     }
@@ -88,6 +91,56 @@
 
   function persistHistory() {
     void appBinding()?.SaveHistory(JSON.stringify(candidateHistory));
+  }
+
+  function persistInputHistory() {
+    void appBinding()?.SaveInputHistory(JSON.stringify(inputHistory));
+  }
+
+  function addInputHistory(text) {
+    if (!text) return;
+    inputHistory = inputHistory.filter((entry) => entry !== text);
+    inputHistory.push(text);
+    inputHistory = inputHistory.slice(-INPUT_HISTORY_LIMIT);
+    inputHistoryIndex = -1;
+    inputHistoryDraft = "";
+    persistInputHistory();
+  }
+
+  async function captureExternalClipboard() {
+    const app = appBinding();
+    if (!app) return;
+    try {
+      const text = await app.ReadClipboard();
+      if (text && inputHistory[inputHistory.length - 1] !== text) {
+        addInputHistory(text);
+      }
+    } catch {
+      // Clipboard reads can fail temporarily when another application owns it.
+    }
+  }
+
+  function showInputHistory(direction) {
+    if (!inputHistory.length) return false;
+    if (inputHistoryIndex === -1) {
+      if (direction > 0) return false;
+      inputHistoryDraft = state.text;
+      inputHistoryIndex = inputHistory.length - 1;
+    } else {
+      inputHistoryIndex += direction;
+      if (inputHistoryIndex >= inputHistory.length) {
+        inputHistoryIndex = -1;
+        state.text = inputHistoryDraft;
+      } else {
+        inputHistoryIndex = Math.max(0, inputHistoryIndex);
+        state.text = inputHistory[inputHistoryIndex];
+      }
+    }
+    if (inputHistoryIndex !== -1) state.text = inputHistory[inputHistoryIndex];
+    state.cursor = state.text.length;
+    state.selectionEnd = state.cursor;
+    render();
+    return true;
   }
 
   // ---- state --------------------------------------------------------------
@@ -1343,9 +1396,12 @@
 
     try {
       await copyToClipboard(text);
-      clearOnNextShow = true;
+      addInputHistory(text);
       statusEl.textContent = "Copied.";
-      setTimeout(hidePopupWindow, 100);
+      await hidePopupWindow();
+      // Clear only the session that was actually copied and closed.  Delayed
+      // callbacks and future popup:shown events must never erase a new draft.
+      resetForNewSession();
     } catch {
       statusEl.textContent = "Copy failed.";
     }
@@ -1368,11 +1424,6 @@
   }
 
   function restoreForReopenedSession() {
-    if (clearOnNextShow) {
-      clearOnNextShow = false;
-      resetForNewSession();
-      return;
-    }
     render();
     inputEl.focus();
   }
@@ -1387,6 +1438,13 @@
 
   inputEl.addEventListener("keydown", (e) => {
     syncSelectionFromInput();
+
+    if (!state.composing && !state.roman && !isAbbrevMode() && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      if (showInputHistory(e.key === "ArrowUp" ? -1 : 1)) e.preventDefault();
+      return;
+    }
+    inputHistoryIndex = -1;
+    inputHistoryDraft = "";
 
     if (isToggleKeyEvent(e)) {
       e.preventDefault();
@@ -1808,10 +1866,15 @@
     return response.json();
   });
   const userPromise = waitForWailsRuntime().then(async (app) => {
-    const [userDictJson, historyJson] = await Promise.all([app.LoadUserDict(), app.LoadHistory()]);
+    const [userDictJson, historyJson, inputHistoryJson] = await Promise.all([
+      app.LoadUserDict(),
+      app.LoadHistory(),
+      app.LoadInputHistory()
+    ]);
     return {
       userDict: JSON.parse(userDictJson || "{}"),
-      candidateHistory: JSON.parse(historyJson || "{}")
+      candidateHistory: JSON.parse(historyJson || "{}"),
+      inputHistory: JSON.parse(inputHistoryJson || "[]")
     };
   });
 
@@ -1820,6 +1883,9 @@
       systemDict = dict;
       syncUserDict(user.userDict);
       syncCandidateHistory(user.candidateHistory);
+      inputHistory = Array.isArray(user.inputHistory)
+        ? user.inputHistory.filter((entry) => typeof entry === "string" && entry).slice(-INPUT_HISTORY_LIMIT)
+        : [];
       statusEl.textContent = DEFAULT_STATUS;
       void appBinding()?.NotifyReady();
     })
@@ -1831,6 +1897,7 @@
 
   globalThis.window?.runtime?.EventsOn?.("popup:shown", () => {
     restoreForReopenedSession();
+    void captureExternalClipboard();
   });
 
   render();
