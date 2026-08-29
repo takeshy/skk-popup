@@ -162,6 +162,7 @@ external_path = ""
 |---|---|---|---|
 | ユーザー辞書 (`userdict.json`) | `$XDG_DATA_HOME/skk-popup/` | `%LocalAppData%\skk-popup\` | `~/Library/Application Support/skk-popup/` |
 | 学習履歴 (`history.json`) | 同上 | 同上 | 同上 |
+| コピー履歴 (`input-history.json`) | 同上 | 同上 | 同上 |
 
 書き込みは最終更新 2 秒後にデバウンスフラッシュされ、窓を閉じるタイミングでも必ずフラッシュされます。
 
