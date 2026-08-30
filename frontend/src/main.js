@@ -70,6 +70,28 @@
     });
   }
 
+  function isRecord(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+  }
+
+  function isCandidateDictionary(value) {
+    return isRecord(value) && Object.values(value).every(
+      (candidates) => Array.isArray(candidates) && candidates.every((candidate) => typeof candidate === "string")
+    );
+  }
+
+  async function loadPersistedJSON(app, method, fallback, validate) {
+    try {
+      const raw = await app[method]();
+      const value = JSON.parse(raw || JSON.stringify(fallback));
+      if (!validate(value)) throw new Error(`${method} returned an unexpected JSON shape`);
+      return value;
+    } catch (error) {
+      console.warn(`${method}: ignoring invalid persisted data`, error);
+      return fallback;
+    }
+  }
+
   async function hidePopupWindow() {
     const app = appBinding();
     if (app) {
@@ -1866,15 +1888,15 @@
     return response.json();
   });
   const userPromise = waitForWailsRuntime().then(async (app) => {
-    const [userDictJson, historyJson, inputHistoryJson] = await Promise.all([
-      app.LoadUserDict(),
-      app.LoadHistory(),
-      app.LoadInputHistory()
+    const [loadedUserDict, loadedHistory, loadedInputHistory] = await Promise.all([
+      loadPersistedJSON(app, "LoadUserDict", {}, isCandidateDictionary),
+      loadPersistedJSON(app, "LoadHistory", {}, isCandidateDictionary),
+      loadPersistedJSON(app, "LoadInputHistory", [], Array.isArray)
     ]);
     return {
-      userDict: JSON.parse(userDictJson || "{}"),
-      candidateHistory: JSON.parse(historyJson || "{}"),
-      inputHistory: JSON.parse(inputHistoryJson || "[]")
+      userDict: loadedUserDict,
+      candidateHistory: loadedHistory,
+      inputHistory: loadedInputHistory
     };
   });
 
@@ -1898,6 +1920,10 @@
   globalThis.window?.runtime?.EventsOn?.("popup:shown", () => {
     restoreForReopenedSession();
     void captureExternalClipboard();
+  });
+
+  globalThis.window?.runtime?.EventsOn?.("popup:focus-input", () => {
+    inputEl.focus();
   });
 
   render();

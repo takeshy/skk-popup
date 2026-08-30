@@ -79,7 +79,7 @@ func usage() {
 Usage:
   skk-popup            start the daemon (resident mode)
   skk-popup toggle     show/hide the popup window
-  skk-popup show       show the popup window
+  skk-popup show       show or focus the popup window
   skk-popup hide       hide the popup window
   skk-popup quit       stop the daemon`)
 }

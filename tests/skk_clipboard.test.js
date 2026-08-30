@@ -19,6 +19,7 @@ class FakeElement {
     this.rangeTextUpdates = 0;
     this.scrollTop = 0;
     this.scrollHeight = 1000;
+    this.focusCount = 0;
   }
 
   get value() {
@@ -34,7 +35,9 @@ class FakeElement {
     this.listeners[type] = listener;
   }
 
-  focus() {}
+  focus() {
+    this.focusCount += 1;
+  }
 
   select() {
     this.selectionStart = 0;
@@ -72,6 +75,9 @@ let savedUserDict = {};
 let savedHistory = {};
 let savedInputHistory = [];
 let popupShownListeners = [];
+let popupFocusInputListeners = [];
+const persistenceWarnings = [];
+console.warn = (...args) => persistenceWarnings.push(args);
 
 globalThis.document = {
   getElementById(id) {
@@ -84,7 +90,9 @@ const fakeApp = {
     return "{}";
   },
   async LoadHistory() {
-    return "{}";
+    // A damaged optional history file must not prevent the system dictionary
+    // and the rest of the popup from loading.
+    return "{damaged json";
   },
   async SaveUserDict(data) {
     savedUserDict = JSON.parse(data);
@@ -121,6 +129,7 @@ globalThis.window = {
   runtime: {
     EventsOn(event, listener) {
       if (event === "popup:shown") popupShownListeners.push(listener);
+      if (event === "popup:focus-input") popupFocusInputListeners.push(listener);
     }
   }
 };
@@ -217,6 +226,11 @@ async function emitPopupShown() {
   await flush();
 }
 
+async function emitPopupFocusInput() {
+  for (const listener of popupFocusInputListeners) listener();
+  await flush();
+}
+
 async function resetWindow() {
   await press("Escape");
   let guard = 0;
@@ -245,6 +259,7 @@ async function runTest(name, fn) {
     await press(" ");
     assert.equal(input.value, "感じ");
     assert.ok(notifyReadyCount >= 1);
+    assert.ok(persistenceWarnings.some(([message]) => message.startsWith("LoadHistory:")));
   });
 
   await runTest("digits type literally outside composition", async () => {
@@ -622,6 +637,12 @@ async function runTest(name, fn) {
     const historyLength = savedInputHistory.length;
     await emitPopupShown();
     assert.equal(savedInputHistory.length, historyLength);
+  });
+
+  await runTest("popup:focus-input focuses the clipboard input", async () => {
+    const focusCount = input.focusCount;
+    await emitPopupFocusInput();
+    assert.equal(input.focusCount, focusCount + 1);
   });
 
   await press("Enter");

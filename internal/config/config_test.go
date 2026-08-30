@@ -65,3 +65,19 @@ external_path = "/tmp/SKK-JISYO.L.json"
 		t.Fatalf("dictionary config not applied: %+v", cfg.Dictionary)
 	}
 }
+
+func TestLoadQuotedValueWithInlineComment(t *testing.T) {
+	cfg := LoadFrom(write(t, `[hotkey]
+accelerator = "Ctrl+Shift+K" # A-Z, 0-9 + modifiers
+
+[dictionary]
+external_path = "/tmp/dictionaries/#main.json" # keep the hash in the path
+`))
+
+	if cfg.Hotkey.Accelerator != "Ctrl+Shift+K" {
+		t.Fatalf("inline comment leaked into accelerator: %q", cfg.Hotkey.Accelerator)
+	}
+	if cfg.Dictionary.ExternalPath != "/tmp/dictionaries/#main.json" {
+		t.Fatalf("hash inside quoted path was treated as a comment: %q", cfg.Dictionary.ExternalPath)
+	}
+}

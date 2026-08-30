@@ -9,6 +9,9 @@ package dict
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -149,36 +152,52 @@ func (s *Store) SaveInputHistory(data string) error {
 	return nil
 }
 
-// Flush writes any staged updates to disk immediately.
-func (s *Store) Flush() {
+// Flush writes any staged updates to disk immediately. Failed writes remain
+// dirty and are retried after the debounce interval.
+func (s *Store) Flush() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.timer != nil {
 		s.timer.Stop()
 		s.timer = nil
 	}
+	var flushErrors []error
 	if s.userDictDirty {
-		if writeAtomic(filepath.Join(s.dir, UserDictFile), s.userDictJSON) == nil {
+		if err := writeAtomic(filepath.Join(s.dir, UserDictFile), s.userDictJSON); err == nil {
 			s.userDictDirty = false
+		} else {
+			flushErrors = append(flushErrors, fmt.Errorf("%s: %w", UserDictFile, err))
 		}
 	}
 	if s.historyDirty {
-		if writeAtomic(filepath.Join(s.dir, HistoryFile), s.historyJSON) == nil {
+		if err := writeAtomic(filepath.Join(s.dir, HistoryFile), s.historyJSON); err == nil {
 			s.historyDirty = false
+		} else {
+			flushErrors = append(flushErrors, fmt.Errorf("%s: %w", HistoryFile, err))
 		}
 	}
 	if s.inputHistoryDirty {
-		if writeAtomic(filepath.Join(s.dir, InputHistoryFile), s.inputHistoryJSON) == nil {
+		if err := writeAtomic(filepath.Join(s.dir, InputHistoryFile), s.inputHistoryJSON); err == nil {
 			s.inputHistoryDirty = false
+		} else {
+			flushErrors = append(flushErrors, fmt.Errorf("%s: %w", InputHistoryFile, err))
 		}
 	}
+	if len(flushErrors) > 0 {
+		s.scheduleFlushLocked()
+	}
+	return errors.Join(flushErrors...)
 }
 
 func (s *Store) scheduleFlushLocked() {
 	if s.timer != nil {
 		s.timer.Stop()
 	}
-	s.timer = time.AfterFunc(flushInterval, s.Flush)
+	s.timer = time.AfterFunc(flushInterval, func() {
+		if err := s.Flush(); err != nil {
+			log.Printf("dict store flush: %v", err)
+		}
+	})
 }
 
 func readFileOrEmpty(path, emptyValue string) string {

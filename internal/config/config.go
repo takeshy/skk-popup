@@ -133,16 +133,31 @@ func LoadFrom(path string) *Config {
 			continue
 		}
 		key := strings.TrimSpace(line[:eq])
-		value := strings.TrimSpace(line[eq+1:])
-		if i := strings.Index(value, "#"); i >= 0 && !strings.HasPrefix(value, "\"") {
-			value = strings.TrimSpace(value[:i])
-		}
+		value := stripInlineComment(strings.TrimSpace(line[eq+1:]))
 		if len(value) >= 2 && strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
 			value = value[1 : len(value)-1]
 		}
 		cfg.apply(section, key, value)
 	}
 	return cfg
+}
+
+func stripInlineComment(value string) string {
+	inString := false
+	escaped := false
+	for i, r := range value {
+		if inString && r == '\\' && !escaped {
+			escaped = true
+			continue
+		}
+		if r == '"' && !escaped {
+			inString = !inString
+		} else if r == '#' && !inString {
+			return strings.TrimSpace(value[:i])
+		}
+		escaped = false
+	}
+	return strings.TrimSpace(value)
 }
 
 func (c *Config) apply(section, key, value string) {

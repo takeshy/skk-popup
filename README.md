@@ -43,7 +43,7 @@ windowrulev2 = stayfocused, class:^(skk-popup)$
 windowrulev2 = noborder, class:^(skk-popup)$
 windowrulev2 = noanim, class:^(skk-popup)$
 
-bind = CTRL SHIFT, K, exec, skk-popup toggle
+bind = CTRL SHIFT, K, exec, skk-popup show
 
 exec-once = uwsm app -- skk-popup
 ```
@@ -63,8 +63,8 @@ exec-once = uwsm app -- skk-popup
 
 キーボードショートカットは OS 側の機能に委譲します (アプリ内では捕捉しません):
 
-- [Shortcuts.app](https://support.apple.com/guide/shortcuts-mac/intro-to-shortcuts-apdfebc4f80a/mac) で「シェルスクリプトを実行」→ `skk-popup toggle` を作成し、ショートカットにキーを割り当てる
-- または skhd / Raycast / Hammerspoon などから `skk-popup toggle` を呼ぶ
+- [Shortcuts.app](https://support.apple.com/guide/shortcuts-mac/intro-to-shortcuts-apdfebc4f80a/mac) で「シェルスクリプトを実行」→ `skk-popup show` を作成し、ショートカットにキーを割り当てる
+- または skhd / Raycast / Hammerspoon などから `skk-popup show` を呼ぶ
 
 自動貼り付けとフォーカス復帰は System Events 経由で行うため、初回実行時に **Accessibility** と **Automation** の権限許可を求められます (`システム設定 > プライバシーとセキュリティ`)。自動起動は「ログイン項目」に登録してください。
 
@@ -75,12 +75,12 @@ macOS では設定の `paste_key` の `ctrl` は **Cmd** として扱われま�
 ```text
 skk-popup            デーモンを起動 (常駐)
 skk-popup toggle     表示/非表示をトグル
-skk-popup show       表示
+skk-popup show       表示、または表示済みの入力欄へフォーカス
 skk-popup hide       非表示
 skk-popup quit       デーモン終了
 ```
 
-1. `Ctrl+Shift+K` (上記 bind) で入力窓を出す。窓は必ず `かな` モードで開きます
+1. `Ctrl+Shift+K` (上記 bind) で入力窓を出す。表示済みの場合は Clipboard Input の入力欄へフォーカスします。窓は必ず `かな` モードで開きます
 2. 窓の中で通常の SKK 操作で入力する
 3. 未変換状態で `Enter` (または `Copy` ボタン) → 確定文字列がクリップボードにコピーされ、窓が閉じます
 4. 直前のウィンドウへフォーカスが戻るので、貼り付ける
@@ -211,7 +211,7 @@ go test ./...
 ## アーキテクチャ
 
 ```text
-Hyprland bind ──▶ skk-popup toggle ──▶ Unix socket ($XDG_RUNTIME_DIR/skk-popup.sock)
+Hyprland bind ──▶ skk-popup show ──▶ Unix socket ($XDG_RUNTIME_DIR/skk-popup.sock)
                                         │
                                         ▼
                      skk-popup デーモン (常駐)

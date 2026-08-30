@@ -27,6 +27,7 @@ type App struct {
 	desktop     desktop.Platform
 	hotkeyMgr   *hotkey.Manager
 
+	actionMu       sync.Mutex
 	mu             sync.Mutex
 	visible        bool
 	ready          bool
@@ -47,7 +48,7 @@ func (a *App) ServiceStartup(_ context.Context, _ application.ServiceOptions) er
 	a.desktop = desktop.New()
 
 	if a.cfg.Hotkey.Enabled {
-		mgr, err := hotkey.Start(a.cfg.Hotkey.Accelerator, a.TogglePopup)
+		mgr, err := hotkey.Start(a.cfg.Hotkey.Accelerator, a.ShowPopup)
 		if err != nil {
 			// Not fatal: the popup stays reachable via `skk-popup toggle`.
 			log.Printf("hotkey: %v", err)
@@ -91,7 +92,7 @@ func (a *App) ServiceShutdown() error {
 		a.ipcServer.Close()
 	}
 	if a.store != nil {
-		a.store.Flush()
+		return a.store.Flush()
 	}
 	return nil
 }
@@ -110,11 +111,23 @@ func (a *App) handleCommand(command string) error {
 
 // TogglePopup flips window visibility.
 func (a *App) TogglePopup() {
-	if a.IsVisible() {
-		a.HidePopup()
+	a.actionMu.Lock()
+	defer a.actionMu.Unlock()
+
+	a.mu.Lock()
+	if !a.ready {
+		a.pendingShow = !a.pendingShow
+		a.mu.Unlock()
 		return
 	}
-	a.ShowPopup()
+	visible := a.visible
+	a.mu.Unlock()
+
+	if visible {
+		a.hidePopupLocked()
+	} else {
+		a.showPopupLocked()
+	}
 }
 
 // IsVisible reports whether the popup window is currently shown.
@@ -124,13 +137,30 @@ func (a *App) IsVisible() bool {
 	return a.visible
 }
 
-// ShowPopup shows the window and tells the frontend to restore its session
-// and focus the input. Requests received before NotifyReady are queued.
+// ShowPopup shows the window and tells the frontend to restore its session.
+// If it is already visible, the window and clipboard input are focused instead.
+// Requests received before NotifyReady are queued.
 func (a *App) ShowPopup() {
+	a.actionMu.Lock()
+	defer a.actionMu.Unlock()
+	a.showPopupLocked()
+}
+
+func (a *App) showPopupLocked() {
 	a.mu.Lock()
 	if !a.ready {
 		a.pendingShow = true
 		a.mu.Unlock()
+		return
+	}
+	if a.visible {
+		a.mu.Unlock()
+		if a.window != nil {
+			a.window.Show().Focus()
+		}
+		if a.application != nil {
+			a.application.Event.Emit("popup:focus-input")
+		}
 		return
 	}
 	a.visible = true
@@ -150,9 +180,16 @@ func (a *App) ShowPopup() {
 // just copied, focus is restored to the previous window and the configured
 // paste shortcut (clipboard.paste_key) is sent after the configured delay.
 func (a *App) HidePopup() {
+	a.actionMu.Lock()
+	defer a.actionMu.Unlock()
+	a.hidePopupLocked()
+}
+
+func (a *App) hidePopupLocked() {
 	a.mu.Lock()
 	wasVisible := a.visible
 	a.visible = false
+	a.pendingShow = false
 	doPaste := a.pasteAfterHide
 	a.pasteAfterHide = false
 	a.mu.Unlock()
@@ -161,7 +198,9 @@ func (a *App) HidePopup() {
 		return
 	}
 	if a.store != nil {
-		a.store.Flush()
+		if err := a.store.Flush(); err != nil {
+			log.Printf("dict store flush: %v", err)
+		}
 	}
 	a.window.Hide()
 	if a.desktop == nil {
@@ -181,6 +220,9 @@ func (a *App) HidePopup() {
 // NotifyReady is called by the frontend once the dictionary and user data
 // finished loading; a queued show request is served now.
 func (a *App) NotifyReady() {
+	a.actionMu.Lock()
+	defer a.actionMu.Unlock()
+
 	a.mu.Lock()
 	a.ready = true
 	pending := a.pendingShow
@@ -188,7 +230,7 @@ func (a *App) NotifyReady() {
 	a.mu.Unlock()
 
 	if pending {
-		a.ShowPopup()
+		a.showPopupLocked()
 	}
 }
 
@@ -255,17 +297,24 @@ func (a *App) ReadClipboard() string {
 // CopyToClipboard places the confirmed text on the Wayland clipboard. It
 // arms the auto-paste step performed by HidePopup when enabled.
 func (a *App) CopyToClipboard(text string) error {
+	a.actionMu.Lock()
+	defer a.actionMu.Unlock()
+	a.mu.Lock()
+	a.pasteAfterHide = false
+	a.mu.Unlock()
 	if text == "" {
 		return nil
+	}
+	if a.copier == nil {
+		return errClipboardUnavailable{}
+	}
+	if err := a.copier.Copy(text); err != nil {
+		return err
 	}
 	a.mu.Lock()
 	a.pasteAfterHide = a.cfg.Clipboard.AutoPaste
 	a.mu.Unlock()
-
-	if a.copier == nil {
-		return errClipboardUnavailable{}
-	}
-	return a.copier.Copy(text)
+	return nil
 }
 
 type errClipboardUnavailable struct{}

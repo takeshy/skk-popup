@@ -2,6 +2,7 @@ package dict
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -82,4 +83,30 @@ func TestWriteAtomicLeavesNoTempFiles(t *testing.T) {
 	if len(entries) != 1 || entries[0] != path {
 		t.Fatalf("temp files left behind: %v", entries)
 	}
+}
+
+func TestFlushReturnsErrorAndSchedulesRetry(t *testing.T) {
+	s := testStore(t)
+	blockedPath := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blockedPath, []byte("blocked"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s.dir = blockedPath
+	if err := s.SaveHistory(`{"reading":["candidate"]}`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.Flush(); err == nil {
+		t.Fatal("expected flush to report an unwritable data directory")
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.historyDirty {
+		t.Fatal("failed history write was marked clean")
+	}
+	if s.timer == nil {
+		t.Fatal("failed history write did not schedule a retry")
+	}
+	s.timer.Stop()
 }
