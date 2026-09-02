@@ -2,12 +2,6 @@
 
 package hotkey
 
-import "errors"
-
-// ErrUnsupported is returned on platforms where skk-popup does not register
-// its own global hotkey.
-var ErrUnsupported = errors.New("hotkey: not supported on this platform")
-
 // Manager is a no-op placeholder outside Windows.
 type Manager struct{}
 

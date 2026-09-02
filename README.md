@@ -78,6 +78,7 @@ skk-popup toggle     表示/非表示をトグル
 skk-popup show       表示、または表示済みの入力欄へフォーカス
 skk-popup hide       非表示
 skk-popup quit       デーモン終了
+skk-popup version    バージョン表示
 ```
 
 1. `Ctrl+Shift+K` (上記 bind) で入力窓を出す。表示済みの場合は Clipboard Input の入力欄へフォーカスします。窓は必ず `かな` モードで開きます
@@ -86,6 +87,8 @@ skk-popup quit       デーモン終了
 4. 直前のウィンドウへフォーカスが戻るので、貼り付ける
 
 デーモンは辞書をメモリに保持したまま常駐するため、2 回目以降の表示は即時です。
+
+ヘッダー右端の **⋮ メニュー** からバージョン確認 / 設定 / ヘルプ (キー操作一覧) を開けます。設定・ヘルプの表示中はウィンドウが一時的に広がり、閉じると元のサイズに戻ります。
 
 ## キー操作
 
@@ -123,12 +126,15 @@ chrome-skk-lite のクリップボード入力窓と同じ挙動です。
 - `↑` / `↓`: コピー履歴を移動 (最大30件。`↓` で現在の下書きに戻る)
 - popup 表示時、外部アプリでコピーされた新しいテキストも履歴へ自動追加
 - `Enter`(未変換) / `Copy`: コピーして窓を閉じる
+- ⋮ メニュー → ヘルプ: 上記のキー操作一覧を窓の中に表示 (`Escape` / `Ctrl+[` で閉じる)
 
 状態は窓下部のステータスバー (`SKK かな` / `SKK OFF` / ...) に表示されます。操作ヒントは状況に応じて `Space: convert / Enter: copy / Ctrl+O: select all` と `Space: next / Enter: commit / x: previous` を切り替えます。
 
 ## 設定
 
 Linux: `~/.config/skk-popup/config.toml` / Windows: `%AppData%\skk-popup\config.toml` / macOS: `~/Library/Application Support/skk-popup/config.toml`
+
+**⋮ → 設定** で同じ内容を GUI から編集・保存できます。保存すると `config.toml` が書き換わり、ウィンドウサイズ・クリップボード/貼り付け設定・(Windows の) ホットキーは即時に反映されます。外部辞書の変更だけは再起動後に反映されます。Linux ではホットキー欄に入力したキーから Hyprland 用の `bind =` 行を生成してコピーできます (キー自体は Hyprland 側で登録)。設定ファイルの場所・データディレクトリ・使用中の辞書もここで確認できます。
 
 ```toml
 [window]

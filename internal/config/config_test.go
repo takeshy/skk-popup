@@ -81,3 +81,29 @@ external_path = "/tmp/dictionaries/#main.json" # keep the hash in the path
 		t.Fatalf("hash inside quoted path was treated as a comment: %q", cfg.Dictionary.ExternalPath)
 	}
 }
+
+func TestSaveRoundTrip(t *testing.T) {
+	want := Default()
+	want.Window.Width = 720
+	want.Window.Height = 300
+	want.Window.RestoreFocus = false
+	want.Clipboard.Backend = "wails"
+	want.Clipboard.AutoPaste = false
+	want.Clipboard.AutoPasteDelayMs = 150
+	want.Clipboard.PasteKey = "ctrl+v"
+	want.Hotkey.Enabled = true
+	want.Hotkey.Accelerator = "Ctrl+Alt+J"
+	want.Dictionary.ExternalPath = `C:\dict\SKK "L".json`
+
+	path := filepath.Join(t.TempDir(), "nested", "config.toml")
+	if err := Save(path, want); err != nil {
+		t.Fatal(err)
+	}
+	got := LoadFrom(path)
+	if *got != *want {
+		t.Fatalf("round trip mismatch:\n got %+v\nwant %+v", got, want)
+	}
+	if _, err := os.Stat(path + ".tmp"); !os.IsNotExist(err) {
+		t.Fatalf("temp file left behind: %v", err)
+	}
+}

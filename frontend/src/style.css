@@ -4,6 +4,12 @@
   line-height: 1.4;
 }
 
+/* Author display rules (.menu, .field-row) must not override the hidden
+   attribute, otherwise the ⋮ menu shows permanently. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   box-sizing: border-box;
   margin: 0;
@@ -44,6 +50,206 @@ h1 {
 
 .mode:hover {
   background: #0f6fad;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.menu-button {
+  --wails-draggable: no-drag;
+  min-height: 0;
+  padding: 1px 7px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.menu-button:hover,
+.menu-button[aria-expanded="true"] {
+  border-color: #c6d0dd;
+  background: #fff;
+}
+
+.menu {
+  position: absolute;
+  top: 40px;
+  right: 14px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  border: 1px solid #c6d0dd;
+  border-radius: 8px;
+  padding: 6px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.22);
+}
+
+.menu-version {
+  margin: 2px 6px 6px;
+  color: #526174;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.menu-row {
+  min-height: 30px;
+  border-color: transparent;
+  background: transparent;
+  text-align: left;
+  font-weight: 500;
+}
+
+.menu-row:hover,
+.menu-row:focus-visible {
+  background: rgba(15, 111, 173, 0.12);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: none;
+  align-items: stretch;
+  justify-content: center;
+  padding: 14px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.overlay[data-open="true"] {
+  display: flex;
+}
+
+.overlay-dialog {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 100%;
+  margin: 0;
+  border: 1px solid #c6d0dd;
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: #fff;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.3);
+}
+
+.overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.overlay-head h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.overlay-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.help-body,
+.settings-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.help-body {
+  margin: 0;
+  font: 13px/1.6 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  white-space: pre-wrap;
+}
+
+.settings-body h3 {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  color: #526174;
+}
+
+.settings-body h3:first-child {
+  margin-top: 0;
+}
+
+.field-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  font-size: 13px;
+}
+
+.field-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-row label.wide {
+  flex: 1 1 100%;
+}
+
+.field-row label.wide input {
+  flex: 1 1 auto;
+}
+
+.field-row input[type="number"] {
+  width: 84px;
+}
+
+.field-row input[type="text"],
+.field-row input[type="number"],
+.field-row select {
+  box-sizing: border-box;
+  min-height: 30px;
+  border: 1px solid #c6d0dd;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: #fff;
+  color: #172033;
+  font: 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.bind-line {
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  font-size: 12px;
+}
+
+.settings-note {
+  margin: 8px 0 0;
+  color: #526174;
+  font-size: 12px;
+}
+
+.settings-status {
+  min-height: 18px;
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: #166534;
+}
+
+.settings-status[data-error="true"] {
+  color: #b91c1c;
+}
+
+.settings-info {
+  margin: 0;
+  font: 12px/1.6 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 textarea {
@@ -214,10 +420,50 @@ button.primary {
   textarea,
   button,
   .register-dialog,
-  .register-input {
+  .register-input,
+  .menu,
+  .overlay-dialog,
+  .field-row input[type="text"],
+  .field-row input[type="number"],
+  .field-row select {
     border-color: #344155;
     background: #172033;
     color: #e8edf5;
+  }
+
+  .menu-button,
+  .menu-row {
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .menu-button:hover,
+  .menu-button[aria-expanded="true"] {
+    border-color: #344155;
+    background: #172033;
+  }
+
+  .menu-row:hover,
+  .menu-row:focus-visible {
+    background: rgba(47, 154, 224, 0.18);
+  }
+
+  .menu-version,
+  .settings-note,
+  .settings-body h3 {
+    color: #aeb8c7;
+  }
+
+  .bind-line {
+    background: #0f172a;
+  }
+
+  .settings-status {
+    color: #86efac;
+  }
+
+  .settings-status[data-error="true"] {
+    color: #fca5a5;
   }
 
   .status {

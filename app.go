@@ -33,6 +33,7 @@ type App struct {
 	ready          bool
 	pendingShow    bool
 	pasteAfterHide bool
+	overlayOpen    bool
 	ipcServer      *ipc.Server
 }
 

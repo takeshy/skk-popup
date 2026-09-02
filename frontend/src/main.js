@@ -16,6 +16,76 @@
   const registerErrorEl = document.getElementById("register-error");
   const registerSaveButton = document.getElementById("register-save");
   const registerCancelButton = document.getElementById("register-cancel");
+  const menuButton = document.getElementById("menu-button");
+  const menuEl = document.getElementById("menu");
+  const menuVersionEl = document.getElementById("menu-version");
+  const menuSettingsButton = document.getElementById("menu-settings");
+  const menuHelpButton = document.getElementById("menu-help");
+  const helpOverlay = document.getElementById("help-overlay");
+  const helpBodyEl = document.getElementById("help-body");
+  const helpCloseButton = document.getElementById("help-close");
+  const settingsOverlay = document.getElementById("settings-overlay");
+  const settingsForm = document.getElementById("settings-form");
+  const settingsCloseButton = document.getElementById("settings-close");
+  const settingsSaveButton = document.getElementById("settings-save");
+  const settingsStatusEl = document.getElementById("settings-status");
+  const settingsInfoEl = document.getElementById("settings-info");
+  const hotkeyNoteEl = document.getElementById("hotkey-note");
+  const hotkeyBindRow = document.getElementById("hotkey-bind-row");
+  const hotkeyBindLineEl = document.getElementById("hotkey-bind-line");
+  const hotkeyCopyBindButton = document.getElementById("hotkey-copy-bind");
+  const cfgFields = {
+    windowWidth: document.getElementById("cfg-window-width"),
+    windowHeight: document.getElementById("cfg-window-height"),
+    restoreFocus: document.getElementById("cfg-restore-focus"),
+    clipboardBackend: document.getElementById("cfg-clipboard-backend"),
+    autoPaste: document.getElementById("cfg-auto-paste"),
+    autoPasteDelay: document.getElementById("cfg-auto-paste-delay"),
+    pasteKey: document.getElementById("cfg-paste-key"),
+    hotkeyEnabled: document.getElementById("cfg-hotkey-enabled"),
+    hotkeyAccelerator: document.getElementById("cfg-hotkey-accelerator"),
+    dictExternalPath: document.getElementById("cfg-dict-external-path")
+  };
+
+  // Key-operation cheat sheet shown by ⋮ → ヘルプ (ported from omarchy
+  // Panel.qml helpText, adjusted to this app's keys).
+  const HELP_TEXT = [
+    "── かな入力 ──",
+    "小文字ローマ字 → かな",
+    "大文字で開始 → 変換開始 (Nihongo → ▽にほんご)",
+    "変換中の大文字 → 送り仮名あり変換 (KanJi → 感じ)",
+    ";  sticky shift / 送り仮名開始位置",
+    "Space  変換 / 次候補",
+    "5候補目から一覧表示、A S D F J K L で選択 (Space 次頁 / x 前頁)",
+    "x  前候補へ / 先頭で x はかな表示へ",
+    "X  表示中の候補をユーザー辞書・学習履歴から削除",
+    "Ctrl+G  候補をキャンセルして変換バッファへ / 送り仮名を読みに戻す",
+    "Tab  過去に変換した読みから補完",
+    "候補なしで Space / 最終候補の次の Space  単語登録",
+    "読みに数字 → 数値変換 (だい5かい → 第５回 / 第五回)",
+    ">  接頭辞変換 (ちょう> → 超) / ▽> 接尾辞",
+    "q  カタカナで確定 (Ctrl+Q 半角カタカナ)",
+    "非変換の q / Ctrl+Q  カタカナ入力モード切替",
+    "l 英数モード / L 全角英数 / Ctrl+J かなモード",
+    "空のかな入力で /  Abbrev (▽/word)、// で / を入力",
+    "zh zj zk zl → ← ↓ ↑ → / z Space → 全角スペース",
+    "z. z, z- z/ z[ z] → … ‥ ～ ・ 『 』",
+    "",
+    "── 編集 (非変換時) ──",
+    "Shift+Enter  改行",
+    "Ctrl+V  貼り付け",
+    "Shift+矢印 / Shift+Home / Shift+End / マウス  範囲選択",
+    "Ctrl+O  全選択 / Ctrl+C コピー / Ctrl+X 切り取り",
+    "Ctrl+F / Ctrl+B  前後へ / Ctrl+A 行頭 / Ctrl+E 行末",
+    "Ctrl+K  行末まで削除 / Ctrl+U 行頭まで削除 / Ctrl+Z 元に戻す",
+    "↑ / ↓  コピー履歴 (最大 30 件。↓ で下書きに戻る)",
+    "",
+    "── その他 ──",
+    "Escape / Ctrl+[  変換キャンセル / 未変換なら閉じる (コピーせず保持)",
+    "Enter (未変換) / Copy  コピーして閉じる",
+    "ヘッダーをドラッグ  ウィンドウ移動",
+    "⋮  設定 / ヘルプ"
+  ].join("\n");
 
   const DEFAULT_STATUS = engine.IDLE_STATUS;
   const CANDIDATE_STATUS = engine.CANDIDATE_STATUS;
@@ -1570,6 +1640,7 @@
     if (registerOverlay.dataset.open === "true") {
       closeRegisterModalSilently();
     }
+    closeMenuAndOverlays();
     syncSelectionFromInput();
     resetComposition();
     state.asciiMode = false;
@@ -1589,6 +1660,7 @@
     if (REOPEN_CLEAR_STATUS.has(statusEl.textContent)) {
       statusEl.textContent = DEFAULT_STATUS;
     }
+    closeMenuAndOverlays();
     render();
     inputEl.focus();
   }
@@ -1600,6 +1672,259 @@
     resetRegisterComposition();
     registerKey = "";
   }
+
+  // ---- ⋮ menu, help and settings overlays --------------------------------
+
+  let appInfo = null;
+
+  function setMenuOpen(open) {
+    menuEl.hidden = !open;
+    menuButton.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) {
+      void loadAppInfo();
+      menuSettingsButton.focus();
+    }
+  }
+
+  async function loadAppInfo() {
+    if (appInfo) return appInfo;
+    try {
+      const info = await appBinding()?.GetAppInfo?.();
+      if (info && typeof info === "object") appInfo = info;
+    } catch (error) {
+      console.warn("GetAppInfo:", error);
+    }
+    if (appInfo) {
+      menuVersionEl.textContent = `skk-popup v${appInfo.version}`;
+    }
+    return appInfo;
+  }
+
+  function overlayOpen() {
+    return helpOverlay.dataset.open === "true" || settingsOverlay.dataset.open === "true";
+  }
+
+  // The popup is sized for a few lines of text; ask the backend to grow the
+  // window while an overlay is showing (mirrors omarchy growing the card).
+  function setOverlayOpen(open) {
+    void appBinding()?.SetOverlayOpen?.(open);
+  }
+
+  function openHelp() {
+    setMenuOpen(false);
+    if (!helpBodyEl.textContent) helpBodyEl.textContent = HELP_TEXT;
+    helpOverlay.dataset.open = "true";
+    setOverlayOpen(true);
+    helpOverlay.focus();
+  }
+
+  function closeHelp() {
+    if (helpOverlay.dataset.open !== "true") return;
+    helpOverlay.dataset.open = "false";
+    if (!overlayOpen()) setOverlayOpen(false);
+    inputEl.focus();
+  }
+
+  function fillSettingsForm(view) {
+    cfgFields.windowWidth.value = String(view.window.width);
+    cfgFields.windowHeight.value = String(view.window.height);
+    cfgFields.restoreFocus.checked = !!view.window.restoreFocus;
+    cfgFields.clipboardBackend.value = view.clipboard.backend;
+    cfgFields.autoPaste.checked = !!view.clipboard.autoPaste;
+    cfgFields.autoPasteDelay.value = String(view.clipboard.autoPasteDelayMs);
+    cfgFields.pasteKey.value = view.clipboard.pasteKey;
+    cfgFields.hotkeyEnabled.checked = !!view.hotkey.enabled;
+    cfgFields.hotkeyAccelerator.value = view.hotkey.accelerator;
+    cfgFields.dictExternalPath.value = view.dictionary.externalPath || "";
+    updateHotkeyGuidance();
+  }
+
+  function readSettingsForm() {
+    return {
+      window: {
+        width: Number(cfgFields.windowWidth.value),
+        height: Number(cfgFields.windowHeight.value),
+        restoreFocus: !!cfgFields.restoreFocus.checked
+      },
+      clipboard: {
+        backend: cfgFields.clipboardBackend.value,
+        autoPaste: !!cfgFields.autoPaste.checked,
+        autoPasteDelayMs: Number(cfgFields.autoPasteDelay.value),
+        pasteKey: cfgFields.pasteKey.value
+      },
+      hotkey: {
+        enabled: !!cfgFields.hotkeyEnabled.checked,
+        accelerator: String(cfgFields.hotkeyAccelerator.value || "").trim()
+      },
+      dictionary: {
+        externalPath: String(cfgFields.dictExternalPath.value || "").trim()
+      }
+    };
+  }
+
+  // Hyprland's bind line for the current accelerator, e.g.
+  // "Ctrl+Shift+K" -> "bind = CTRL SHIFT, K, exec, skk-popup show".
+  function hyprlandBindLine(accelerator) {
+    const parts = String(accelerator || "").split(/[+\s]+/).filter(Boolean);
+    if (!parts.length) return "";
+    const key = parts.pop();
+    const mods = parts.map((m) => {
+      const upper = m.toUpperCase();
+      return upper === "WIN" ? "SUPER" : upper;
+    });
+    return `bind = ${mods.join(" ")}${mods.length ? ", " : ""}${key.toUpperCase()}, exec, skk-popup show`;
+  }
+
+  function updateHotkeyGuidance() {
+    const os = appInfo?.os || "";
+    const accelerator = cfgFields.hotkeyAccelerator.value;
+    if (os === "linux") {
+      hotkeyNoteEl.textContent = "Linux ではキーは Hyprland 側で bind します。下の行を hyprland.conf に貼り付けて hyprctl reload してください。";
+      hotkeyBindLineEl.textContent = hyprlandBindLine(accelerator);
+      hotkeyBindRow.hidden = !hotkeyBindLineEl.textContent;
+    } else if (os === "darwin") {
+      hotkeyNoteEl.textContent = "macOS では Shortcuts.app などから `skk-popup show` を呼び出してキーを割り当ててください。";
+      hotkeyBindRow.hidden = true;
+    } else {
+      hotkeyNoteEl.textContent = "A-Z, 0-9, F1-F24 と Ctrl / Shift / Alt / Win を + で繋ぎます。保存時に再登録されます。";
+      hotkeyBindRow.hidden = true;
+    }
+  }
+
+  function setSettingsStatus(text, isError = false) {
+    settingsStatusEl.textContent = text;
+    settingsStatusEl.dataset.error = isError ? "true" : "false";
+  }
+
+  function renderSettingsInfo() {
+    if (!appInfo) {
+      settingsInfoEl.textContent = "";
+      return;
+    }
+    settingsInfoEl.textContent = [
+      `skk-popup v${appInfo.version} (${appInfo.os})`,
+      `設定ファイル: ${appInfo.configPath || "-"}`,
+      `データ: ${appInfo.dataDir || "-"}`,
+      `辞書: ${appInfo.dictionarySource || "-"}`
+    ].join("\n");
+  }
+
+  async function openSettings() {
+    setMenuOpen(false);
+    settingsOverlay.dataset.open = "true";
+    setOverlayOpen(true);
+    setSettingsStatus("");
+    settingsOverlay.focus();
+    await loadAppInfo();
+    renderSettingsInfo();
+    try {
+      const view = await appBinding()?.LoadConfig?.();
+      if (!view) throw new Error("backend is not ready");
+      fillSettingsForm(view);
+    } catch (error) {
+      setSettingsStatus(`設定を読み込めません: ${error?.message || error}`, true);
+    }
+    cfgFields.windowWidth.focus();
+  }
+
+  function closeSettings() {
+    if (settingsOverlay.dataset.open !== "true") return;
+    settingsOverlay.dataset.open = "false";
+    if (!overlayOpen()) setOverlayOpen(false);
+    inputEl.focus();
+  }
+
+  async function saveSettings() {
+    const app = appBinding();
+    if (!app?.SaveConfig) {
+      setSettingsStatus("backend is not ready", true);
+      return;
+    }
+    settingsSaveButton.disabled = true;
+    try {
+      const result = await app.SaveConfig(readSettingsForm());
+      appInfo = null;
+      await loadAppInfo();
+      renderSettingsInfo();
+      updateHotkeyGuidance();
+      const notes = [`保存しました: ${result?.path || ""}`.trim()];
+      if (result?.restartRequired) notes.push("辞書の変更は再起動後に反映されます。");
+      if (result?.warning) notes.push(result.warning);
+      setSettingsStatus(notes.join(" "), !!result?.warning);
+    } catch (error) {
+      setSettingsStatus(String(error?.message || error), true);
+    } finally {
+      settingsSaveButton.disabled = false;
+    }
+  }
+
+  function closeMenuAndOverlays() {
+    setMenuOpen(false);
+    closeHelp();
+    closeSettings();
+  }
+
+  menuButton.addEventListener("click", (e) => {
+    e?.stopPropagation?.();
+    setMenuOpen(menuEl.hidden);
+  });
+  // Clicking anywhere outside the menu dismisses it.
+  document.addEventListener?.("click", (e) => {
+    if (menuEl.hidden) return;
+    if (menuEl.contains?.(e.target) || e.target === menuButton) return;
+    setMenuOpen(false);
+  });
+  menuSettingsButton.addEventListener("click", () => {
+    void openSettings();
+  });
+  menuHelpButton.addEventListener("click", () => {
+    openHelp();
+  });
+  menuEl.addEventListener("keydown", (e) => {
+    if (isEscapeKeyEvent(e)) {
+      e.preventDefault();
+      setMenuOpen(false);
+      inputEl.focus();
+    }
+  });
+  helpCloseButton.addEventListener("click", () => {
+    closeHelp();
+  });
+  helpOverlay.addEventListener("click", (e) => {
+    if (e.target === helpOverlay) closeHelp();
+  });
+  helpOverlay.addEventListener("keydown", (e) => {
+    if (isEscapeKeyEvent(e)) {
+      e.preventDefault();
+      closeHelp();
+    }
+  });
+  settingsCloseButton.addEventListener("click", () => {
+    closeSettings();
+  });
+  settingsOverlay.addEventListener("click", (e) => {
+    if (e.target === settingsOverlay) closeSettings();
+  });
+  settingsOverlay.addEventListener("keydown", (e) => {
+    if (isEscapeKeyEvent(e)) {
+      e.preventDefault();
+      closeSettings();
+    }
+  });
+  settingsForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    void saveSettings();
+  });
+  cfgFields.hotkeyAccelerator.addEventListener("input", () => {
+    updateHotkeyGuidance();
+  });
+  hotkeyCopyBindButton.addEventListener("click", () => {
+    const line = hotkeyBindLineEl.textContent;
+    if (!line) return;
+    copyToClipboard(line)
+      .then(() => setSettingsStatus("bind 行をコピーしました (hyprland.conf 用)"))
+      .catch(() => setSettingsStatus("Copy failed.", true));
+  });
 
   inputEl.addEventListener("keydown", (e) => {
     syncSelectionFromInput();
@@ -1843,6 +2168,10 @@
 
     if (handleLiteralAscii(e)) return;
   }
+
+  inputEl.addEventListener("focus", () => {
+    if (!menuEl.hidden) setMenuOpen(false);
+  });
 
   inputEl.addEventListener("paste", (e) => {
     e.preventDefault();

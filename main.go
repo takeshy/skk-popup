@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -15,11 +16,38 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed wails.json
+var wailsJSON []byte
+
+// version can be overridden at link time (-ldflags "-X main.version=...");
+// otherwise it is read from the embedded wails.json so the bump commit is
+// the single source of truth.
+var version = ""
+
+func appVersion() string {
+	if version != "" {
+		return version
+	}
+	var manifest struct {
+		Info struct {
+			Version string `json:"version"`
+		} `json:"info"`
+	}
+	if err := json.Unmarshal(wailsJSON, &manifest); err == nil && manifest.Info.Version != "" {
+		return manifest.Info.Version
+	}
+	return "dev"
+}
+
 func main() {
 	if len(os.Args) > 1 {
 		command := os.Args[1]
 		if command == "-h" || command == "--help" || command == "help" {
 			usage()
+			return
+		}
+		if command == "version" || command == "--version" {
+			fmt.Println("skk-popup", appVersion())
 			return
 		}
 		if err := ipc.RunClientCommand(command); err != nil {
@@ -81,5 +109,6 @@ Usage:
   skk-popup toggle     show/hide the popup window
   skk-popup show       show or focus the popup window
   skk-popup hide       hide the popup window
-  skk-popup quit       stop the daemon`)
+  skk-popup quit       stop the daemon
+  skk-popup version    print the version`)
 }

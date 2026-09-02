@@ -9,8 +9,16 @@
 <body>
   <header>
     <h1>SKK Clipboard Input</h1>
-    <div id="mode" class="mode" role="button" tabindex="0" title="クリックで SKK かな / SKK OFF を切り替え">SKK かな</div>
+    <div class="header-right">
+      <div id="mode" class="mode" role="button" tabindex="0" title="クリックで SKK かな / SKK OFF を切り替え">SKK かな</div>
+      <button id="menu-button" class="menu-button" type="button" title="メニュー" aria-haspopup="menu" aria-expanded="false">⋮</button>
+    </div>
   </header>
+  <div id="menu" class="menu" role="menu" hidden>
+    <p id="menu-version" class="menu-version">skk-popup</p>
+    <button id="menu-settings" class="menu-row" type="button" role="menuitem">設定</button>
+    <button id="menu-help" class="menu-row" type="button" role="menuitem">ヘルプ (キー操作)</button>
+  </div>
   <textarea id="input" autocomplete="off" spellcheck="false" autofocus></textarea>
   <div id="candidate" class="candidate" data-active="false"></div>
   <div class="footer">
@@ -32,6 +40,69 @@
         <button id="register-save" class="primary" type="button">登録</button>
       </div>
     </div>
+  </div>
+  <div id="help-overlay" class="overlay" data-open="false" tabindex="-1">
+    <div class="overlay-dialog" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <div class="overlay-head">
+        <h2 id="help-title">キー操作</h2>
+        <button id="help-close" type="button">閉じる</button>
+      </div>
+      <pre id="help-body" class="help-body"></pre>
+    </div>
+  </div>
+  <div id="settings-overlay" class="overlay" data-open="false" tabindex="-1">
+    <form id="settings-form" class="overlay-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="overlay-head">
+        <h2 id="settings-title">設定</h2>
+        <div class="overlay-actions">
+          <button id="settings-close" type="button">閉じる</button>
+          <button id="settings-save" class="primary" type="submit">保存</button>
+        </div>
+      </div>
+      <p id="settings-status" class="settings-status" aria-live="polite"></p>
+      <div class="settings-body">
+        <h3>ウィンドウ</h3>
+        <div class="field-row">
+          <label>幅 <input id="cfg-window-width" type="number" min="200" max="4000" step="10"></label>
+          <label>高さ <input id="cfg-window-height" type="number" min="120" max="4000" step="10"></label>
+          <label class="check"><input id="cfg-restore-focus" type="checkbox"> 閉じたあと直前のウィンドウへフォーカスを戻す</label>
+        </div>
+        <h3>クリップボード / 貼り付け</h3>
+        <div class="field-row">
+          <label>backend
+            <select id="cfg-clipboard-backend">
+              <option value="wl-copy">wl-copy (Linux/Wayland)</option>
+              <option value="wails">wails (Windows/macOS)</option>
+            </select>
+          </label>
+          <label class="check"><input id="cfg-auto-paste" type="checkbox"> コピー後に自動で貼り付ける</label>
+          <label>待ち時間 (ms) <input id="cfg-auto-paste-delay" type="number" min="0" max="10000" step="10"></label>
+          <label>貼り付けキー
+            <select id="cfg-paste-key">
+              <option value="ctrl+shift+v">Ctrl+Shift+V (ターミナル向け)</option>
+              <option value="ctrl+v">Ctrl+V</option>
+            </select>
+          </label>
+        </div>
+        <h3>ショートカット</h3>
+        <div class="field-row">
+          <label class="check"><input id="cfg-hotkey-enabled" type="checkbox"> アプリ内でグローバルホットキーを登録する (Windows のみ)</label>
+          <label>キー <input id="cfg-hotkey-accelerator" type="text" placeholder="Ctrl+Shift+K" spellcheck="false"></label>
+        </div>
+        <p id="hotkey-note" class="settings-note"></p>
+        <div id="hotkey-bind-row" class="field-row" hidden>
+          <code id="hotkey-bind-line" class="bind-line"></code>
+          <button id="hotkey-copy-bind" type="button">bind 行をコピー</button>
+        </div>
+        <h3>辞書</h3>
+        <div class="field-row">
+          <label class="wide">外部辞書ファイル (空なら埋め込み辞書) <input id="cfg-dict-external-path" type="text" placeholder="/path/to/SKK-JISYO.L" spellcheck="false"></label>
+        </div>
+        <p class="settings-note">辞書の変更は再起動後に反映されます。ウィンドウサイズ・貼り付け設定・ホットキーは保存時に反映されます。</p>
+        <h3>情報</h3>
+        <pre id="settings-info" class="settings-info"></pre>
+      </div>
+    </form>
   </div>
   <script src="/src/skk_engine.js"></script>
   <script type="module" src="/src/wails_bridge.js"></script>

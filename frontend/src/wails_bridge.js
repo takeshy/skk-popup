@@ -10,16 +10,20 @@ globalThis.window.go = {
   main: {
     App: {
       CopyToClipboard: (text) => call("CopyToClipboard", text),
+      GetAppInfo: () => call("GetAppInfo"),
       HidePopup: () => call("HidePopup"),
       IsVisible: () => call("IsVisible"),
       LoadHistory: () => call("LoadHistory"),
       LoadInputHistory: () => call("LoadInputHistory"),
       LoadUserDict: () => call("LoadUserDict"),
+      LoadConfig: () => call("LoadConfig"),
       NotifyReady: () => call("NotifyReady"),
       ReadClipboard: () => call("ReadClipboard"),
       SaveHistory: (data) => call("SaveHistory", data),
       SaveInputHistory: (data) => call("SaveInputHistory", data),
       SaveUserDict: (data) => call("SaveUserDict", data),
+      SaveConfig: (view) => call("SaveConfig", view),
+      SetOverlayOpen: (open) => call("SetOverlayOpen", open),
       ShowPopup: () => call("ShowPopup"),
       TogglePopup: () => call("TogglePopup")
     }

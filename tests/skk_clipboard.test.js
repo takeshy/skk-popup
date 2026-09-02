@@ -38,6 +38,12 @@ class FakeElement {
 
   focus() {
     this.focusCount += 1;
+    focusedElement = this;
+  }
+
+  setAttribute(name, value) {
+    this.attributes = this.attributes || {};
+    this.attributes[name] = value;
   }
 
   select() {
@@ -80,14 +86,34 @@ let notifyReadyCount = 0;
 let savedUserDict = {};
 let savedHistory = {};
 let savedInputHistory = [];
+let savedConfig = null;
+let overlayOpenCalls = [];
+const appInfo = {
+  version: "9.9.9",
+  os: "linux",
+  configPath: "/home/u/.config/skk-popup/config.toml",
+  dataDir: "/home/u/.local/share/skk-popup",
+  dictionarySource: "embedded"
+};
+const loadedConfig = {
+  window: { width: 600, height: 240, restoreFocus: true },
+  clipboard: { backend: "wl-copy", autoPaste: true, autoPasteDelayMs: 80, pasteKey: "ctrl+shift+v" },
+  hotkey: { enabled: false, accelerator: "Ctrl+Shift+K" },
+  dictionary: { externalPath: "" }
+};
 let popupShownListeners = [];
 let popupFocusInputListeners = [];
 const persistenceWarnings = [];
 console.warn = (...args) => persistenceWarnings.push(args);
 
+let focusedElement = null;
+
 globalThis.document = {
   getElementById(id) {
-    return elements[id] || null;
+    // Menu/help/settings widgets are created on demand so the fixture does
+    // not have to enumerate every form field.
+    if (!elements[id]) elements[id] = new FakeElement(id);
+    return elements[id];
   }
 };
 
@@ -124,6 +150,20 @@ const fakeApp = {
   },
   NotifyReady() {
     notifyReadyCount += 1;
+  },
+  async GetAppInfo() {
+    return appInfo;
+  },
+  async LoadConfig() {
+    return loadedConfig;
+  },
+  async SaveConfig(view) {
+    if (view.window.width < 200) throw new Error("ウィンドウサイズは 幅 200〜4000 / 高さ 120〜4000 の範囲で指定してください");
+    savedConfig = view;
+    return { path: appInfo.configPath, restartRequired: view.dictionary.externalPath !== "", warning: "" };
+  },
+  SetOverlayOpen(open) {
+    overlayOpenCalls.push(open);
   }
 };
 
@@ -825,6 +865,74 @@ async function runTest(name, fn) {
     assert.equal(elements["register-overlay"].dataset.open, "true");
     await pressRegister("[", { ctrl: true, keyCode: 219 });
     assert.equal(elements["register-overlay"].dataset.open, "false");
+  });
+
+  await runTest("the menu shows the version and opens help", async () => {
+    elements["menu-button"].listeners.click();
+    await flush();
+    assert.equal(elements.menu.hidden, false);
+    assert.equal(elements["menu-version"].textContent, "skk-popup v9.9.9");
+    elements["menu-help"].listeners.click();
+    await flush();
+    assert.equal(elements.menu.hidden, true);
+    assert.equal(elements["help-overlay"].dataset.open, "true");
+    assert.ok(elements["help-body"].textContent.includes("Ctrl+O  全選択"));
+    assert.deepEqual(overlayOpenCalls, [true]);
+    // Ctrl+[ closes the overlay like Escape and restores the window size.
+    elements["help-overlay"].listeners.keydown({ key: "[", ctrlKey: true, altKey: false, metaKey: false, shiftKey: false, keyCode: 219, preventDefault() {} });
+    await flush();
+    assert.equal(elements["help-overlay"].dataset.open, "false");
+    assert.deepEqual(overlayOpenCalls, [true, false]);
+    assert.equal(focusedElement, input);
+    overlayOpenCalls = [];
+  });
+
+  await runTest("settings load the config, show the Hyprland bind line, and save", async () => {
+    elements["menu-button"].listeners.click();
+    elements["menu-settings"].listeners.click();
+    await flush();
+    await flush();
+    assert.equal(elements["settings-overlay"].dataset.open, "true");
+    assert.equal(elements["cfg-window-width"].value, "600");
+    assert.equal(elements["cfg-paste-key"].value, "ctrl+shift+v");
+    assert.equal(elements["cfg-hotkey-accelerator"].value, "Ctrl+Shift+K");
+    assert.equal(elements["hotkey-bind-line"].textContent, "bind = CTRL SHIFT, K, exec, skk-popup show");
+    assert.equal(elements["hotkey-bind-row"].hidden, false);
+    assert.ok(elements["settings-info"].textContent.includes("/home/u/.config/skk-popup/config.toml"));
+
+    elements["cfg-window-width"].value = "720";
+    elements["cfg-auto-paste"].checked = false;
+    elements["cfg-dict-external-path"].value = "/tmp/SKK-JISYO.L";
+    elements["settings-form"].listeners.submit({ preventDefault() {} });
+    await flush();
+    await flush();
+    assert.equal(savedConfig.window.width, 720);
+    assert.equal(savedConfig.clipboard.autoPaste, false);
+    assert.equal(savedConfig.dictionary.externalPath, "/tmp/SKK-JISYO.L");
+    assert.ok(elements["settings-status"].textContent.startsWith("保存しました:"));
+    assert.ok(elements["settings-status"].textContent.includes("再起動後"));
+
+    // Validation errors from the backend are shown, not swallowed.
+    elements["cfg-window-width"].value = "10";
+    elements["settings-form"].listeners.submit({ preventDefault() {} });
+    await flush();
+    await flush();
+    assert.equal(elements["settings-status"].dataset.error, "true");
+    assert.ok(elements["settings-status"].textContent.includes("200"));
+
+    elements["settings-close"].listeners.click();
+    assert.equal(elements["settings-overlay"].dataset.open, "false");
+    overlayOpenCalls = [];
+  });
+
+  await runTest("reopening the popup closes the menu and overlays", async () => {
+    elements["menu-button"].listeners.click();
+    elements["menu-help"].listeners.click();
+    await flush();
+    await emitPopupShown();
+    assert.equal(elements.menu.hidden, true);
+    assert.equal(elements["help-overlay"].dataset.open, "false");
+    overlayOpenCalls = [];
   });
 
   await runTest("reopening after Escape preserves the input", async () => {

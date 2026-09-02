@@ -65,6 +65,9 @@ func dataDir() string {
 	return ""
 }
 
+// DataDir returns the per-user data directory (see dataDir).
+func DataDir() string { return dataDir() }
+
 // NewStore creates a store rooted at $XDG_DATA_HOME/skk-popup.
 func NewStore() (*Store, error) {
 	dir := dataDir()

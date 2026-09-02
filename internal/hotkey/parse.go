@@ -1,6 +1,7 @@
 package hotkey
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -57,3 +58,7 @@ func virtualKeyCode(token string) (uint16, error) {
 	}
 	return 0, fmt.Errorf("hotkey: unsupported key %q (use A-Z, 0-9 or F1-F24)", token)
 }
+
+// ErrUnsupported is returned on platforms where skk-popup does not register
+// its own global hotkey.
+var ErrUnsupported = errors.New("hotkey: not supported on this platform")
