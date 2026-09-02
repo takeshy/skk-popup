@@ -53,6 +53,10 @@
   let candidateHistory = {};
   let inputHistory = [];
   let inputHistoryIndex = -1;
+  // Pre-mutation snapshots of the committed text for Ctrl+Z (mirrors
+  // omarchy Engine.undo). One entry per key/paste that changed state.text.
+  const UNDO_LIMIT = 200;
+  let undoStack = [];
   let inputHistoryDraft = "";
   let systemDict = {};
   let registerKey = "";
@@ -390,12 +394,33 @@
     state.cursor = 0;
     state.selectionEnd = state.text.length;
     render();
-    // render() collapses the visible selection; re-apply it so the highlight
-    // shows. The model selection (cursor !== selectionEnd) survives the
-    // subsequent `select` event via syncSelectionFromInput().
-    if (typeof inputEl.setSelectionRange === "function") {
-      inputEl.setSelectionRange(0, state.text.length);
-    }
+  }
+
+  // ---- undo (Ctrl+Z) ------------------------------------------------------
+
+  // recordUndo runs `mutate` and, if it changed the committed text, pushes
+  // the previous text/caret so Ctrl+Z can restore it.
+  function recordUndo(mutate) {
+    const before = state.text;
+    const beforeCursor = state.cursor;
+    mutate();
+    if (state.text === before) return;
+    undoStack.push({ text: before, cursor: beforeCursor });
+    if (undoStack.length > UNDO_LIMIT) undoStack = undoStack.slice(-UNDO_LIMIT);
+  }
+
+  function performUndo() {
+    const snapshot = undoStack.pop();
+    if (!snapshot) return;
+    resetComposition();
+    state.text = snapshot.text;
+    state.cursor = clampTextIndex(snapshot.cursor);
+    state.selectionEnd = state.cursor;
+    render();
+  }
+
+  function isUndoKeyEvent(e) {
+    return e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey && e.key.toLowerCase() === "z";
   }
 
   function renderCandidateHint() {
@@ -475,13 +500,31 @@
   function render() {
     const selection = normalizedTextSelection();
     const preedit = currentPreeditText();
-    const value = state.text.slice(0, selection.start) + preedit + state.text.slice(selection.end);
-    const cursor = selection.start + preedit.length;
-    updateInputValue(value);
-    if (inputEl.selectionStart !== cursor || inputEl.selectionEnd !== cursor) {
-      inputEl.selectionStart = inputEl.selectionEnd = cursor;
+    // A pending preedit is shown in place of the selected committed text, so
+    // that typing over a selection previews the replacement. With no preedit
+    // the selection must stay visible as a highlight over the full text,
+    // otherwise Ctrl+O (select all) blanks the whole textarea.
+    let value;
+    let selectionStart;
+    let selectionEnd;
+    if (preedit.length) {
+      value = state.text.slice(0, selection.start) + preedit + state.text.slice(selection.end);
+      selectionStart = selectionEnd = selection.start + preedit.length;
+    } else {
+      value = state.text;
+      selectionStart = selection.start;
+      selectionEnd = selection.end;
     }
-    if (cursor === value.length) {
+    updateInputValue(value);
+    if (inputEl.selectionStart !== selectionStart || inputEl.selectionEnd !== selectionEnd) {
+      if (typeof inputEl.setSelectionRange === "function") {
+        inputEl.setSelectionRange(selectionStart, selectionEnd);
+      } else {
+        inputEl.selectionStart = selectionStart;
+        inputEl.selectionEnd = selectionEnd;
+      }
+    }
+    if (selectionEnd === value.length) {
       inputEl.scrollTop = inputEl.scrollHeight;
     }
     updateMode();
@@ -1281,6 +1324,14 @@
     return (e.key.charCodeAt(0) | 32) === 106;
   }
 
+  // Escape, or Ctrl+[ (the terminal/Vim equivalent, which also arrives as
+  // e.key "[" with ctrlKey set).
+  function isEscapeKeyEvent(e) {
+    if (e.key === "Escape") return true;
+    if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return false;
+    return e.key === "[" || e.code === "BracketLeft" || e.keyCode === 219;
+  }
+
   function isCancelCandidateKeyEvent(e) {
     if (!e.ctrlKey || e.altKey || e.metaKey) return false;
     const code = e.keyCode;
@@ -1527,6 +1578,7 @@
     state.text = "";
     state.cursor = 0;
     state.selectionEnd = 0;
+    undoStack = [];
     render();
     inputEl.focus();
   }
@@ -1552,6 +1604,19 @@
   inputEl.addEventListener("keydown", (e) => {
     syncSelectionFromInput();
 
+    if (isUndoKeyEvent(e)) {
+      // Handled before everything else so the browser's native textarea
+      // undo never runs against the model (mirrors omarchy HandleKey).
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      performUndo();
+      return;
+    }
+
+    recordUndo(() => handleMainKeydown(e));
+  }, true);
+
+  function handleMainKeydown(e) {
     if (!state.composing && !state.roman && !isAbbrevMode() && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
       if (showInputHistory(e.key === "ArrowUp" ? -1 : 1)) e.preventDefault();
       return;
@@ -1625,6 +1690,22 @@
       return;
     }
 
+    if (isEscapeKeyEvent(e)) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      if (isAbbrevMode()) {
+        closeAbbrev("");
+        return;
+      }
+      if (state.composing || state.roman) {
+        resetComposition();
+        render();
+        return;
+      }
+      hidePopupWindow();
+      return;
+    }
+
     if (e.ctrlKey || e.altKey || e.metaKey) return;
 
     if ((state.asciiMode || state.wideAscii) && ASCII_PRINTABLE_RE.test(e.key)) {
@@ -1650,21 +1731,6 @@
         }
         return;
       }
-    }
-
-    if (e.key === "Escape") {
-      e.preventDefault();
-      if (isAbbrevMode()) {
-        closeAbbrev("");
-        return;
-      }
-      if (state.composing || state.roman) {
-        resetComposition();
-        render();
-        return;
-      }
-      hidePopupWindow();
-      return;
     }
 
     if (e.key === "/" && !state.composing && !state.roman && !isAbbrevMode()) {
@@ -1776,11 +1842,15 @@
     if (handlePrintable(e)) return;
 
     if (handleLiteralAscii(e)) return;
-  }, true);
+  }
 
   inputEl.addEventListener("paste", (e) => {
     e.preventDefault();
     syncSelectionFromInput();
+    recordUndo(() => handlePaste(e));
+  });
+
+  function handlePaste(e) {
 
     // A textarea normalizes CRLF/CR line endings to LF. Keep the model in the
     // same form or every Windows-style newline shifts its cursor offsets by
@@ -1806,6 +1876,26 @@
 
     replaceSelectedText(pastedText);
     render();
+  }
+
+  // Ctrl+X / Shift+Delete / context-menu cut. The native cut only edits the
+  // textarea, leaving state.text untouched, so the next paste re-inserted the
+  // cut text on top of the model's copy. Apply the cut to the model instead
+  // (mirrors omarchy handleMainKey Ctrl+X).
+  inputEl.addEventListener("cut", (e) => {
+    e.preventDefault();
+    syncSelectionFromInput();
+    if (currentPreeditText()) return;
+    const selection = normalizedTextSelection();
+    if (selection.start === selection.end) return;
+    const text = state.text.slice(selection.start, selection.end);
+    recordUndo(() => {
+      replaceSelectedText("");
+      render();
+    });
+    copyToClipboard(text).catch(() => {
+      statusEl.textContent = "Copy failed.";
+    });
   });
 
   inputEl.addEventListener("beforeinput", (e) => {
@@ -1913,8 +2003,9 @@
       return;
     }
 
-    if (e.key === "Escape") {
+    if (isEscapeKeyEvent(e)) {
       e.preventDefault();
+      e.stopImmediatePropagation();
       closeRegisterModal();
       return;
     }

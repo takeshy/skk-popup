@@ -662,10 +662,123 @@ async function runTest(name, fn) {
   await runTest("Ctrl+O selects all and typing replaces the buffer", async () => {
     pasteText("replace me");
     await press("o", { ctrl: true });
+    // The selected text must stay visible; only the highlight changes.
+    assert.equal(input.value, "replace me");
     assert.equal(input.selectionStart, 0);
     assert.equal(input.selectionEnd, 10);
+    // The browser fires `select` after the programmatic selection.
+    input.listeners.select();
+    assert.equal(input.value, "replace me");
     await type("ai");
     assert.equal(input.value, "あい");
+  });
+
+  await runTest("Ctrl+O keeps the text when the selection is dropped again", async () => {
+    pasteText("keep me");
+    await press("o", { ctrl: true });
+    assert.equal(input.value, "keep me");
+    // A native caret move (ArrowRight) collapses the DOM selection.
+    input.selectionStart = input.selectionEnd = 7;
+    input.listeners.select();
+    await type("a");
+    assert.equal(input.value, "keep meあ");
+  });
+
+  await runTest("a selection stays visible across a mode re-render", async () => {
+    pasteText("select me");
+    input.selectionStart = 0;
+    input.selectionEnd = 6;
+    input.listeners.select();
+    elements.mode.listeners.click(); // toggleSkkMode -> render()
+    assert.equal(input.value, "select me");
+    assert.equal(input.selectionStart, 0);
+    assert.equal(input.selectionEnd, 6);
+    elements.mode.listeners.click();
+  });
+
+  await runTest("cut after Ctrl+O removes the text from the model, so paste inserts it once", async () => {
+    pasteText("cut me");
+    await press("o", { ctrl: true });
+    const cutEvent = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+    input.listeners.cut(cutEvent);
+    await flush();
+    assert.equal(cutEvent.defaultPrevented, true);
+    assert.equal(copiedText, "cut me");
+    assert.equal(input.value, "");
+    pasteText(clipboardText);
+    assert.equal(input.value, "cut me");
+    // Ctrl+Z brings the cut text back.
+    await press("z", { ctrl: true });
+    await press("z", { ctrl: true });
+    assert.equal(input.value, "cut me");
+  });
+
+  await runTest("cut with a partial selection removes only that range", async () => {
+    pasteText("abcdef");
+    input.selectionStart = 2;
+    input.selectionEnd = 4;
+    input.listeners.select();
+    input.listeners.cut({ preventDefault() {} });
+    await flush();
+    assert.equal(copiedText, "cd");
+    assert.equal(input.value, "abef");
+    assert.equal(input.selectionStart, 2);
+    await type("a");
+    assert.equal(input.value, "abあef");
+  });
+
+  await runTest("cut is ignored while a preedit is pending", async () => {
+    await type("Kanji");
+    input.selectionStart = 0;
+    input.selectionEnd = 4;
+    input.listeners.cut({ preventDefault() {} });
+    await flush();
+    assert.equal(input.value, "▽かんじ");
+  });
+
+  await runTest("Ctrl+Z undoes edits one step at a time", async () => {
+    pasteText("あいうえお");
+    input.selectionStart = input.selectionEnd = 3;
+    await press("k", { ctrl: true });
+    assert.equal(input.value, "あいう");
+    await type("a");
+    assert.equal(input.value, "あいうあ");
+    await press("z", { ctrl: true });
+    assert.equal(input.value, "あいう");
+    assert.equal(input.selectionStart, 3);
+    await press("z", { ctrl: true });
+    assert.equal(input.value, "あいうえお");
+    assert.equal(input.selectionStart, 3);
+    await press("z", { ctrl: true }); // undo the paste
+    assert.equal(input.value, "");
+  });
+
+  await runTest("Ctrl+Z restores text replaced through a selection", async () => {
+    pasteText("replace me");
+    await press("o", { ctrl: true });
+    await type("ai");
+    assert.equal(input.value, "あい");
+    await press("z", { ctrl: true });
+    assert.equal(input.value, "あ");
+    await press("z", { ctrl: true });
+    assert.equal(input.value, "replace me");
+  });
+
+  await runTest("Ctrl+Z cancels a pending conversion and undoes the last commit", async () => {
+    await type("ai");
+    await type("Kanji");
+    assert.equal(input.value, "あい▽かんじ");
+    await press("z", { ctrl: true });
+    assert.equal(input.value, "あ");
+  });
+
+  await runTest("Ctrl+Z has nothing to undo after copying", async () => {
+    await type("ai");
+    await press("Enter");
+    assert.equal(copiedText, "あい");
+    await emitPopupShown();
+    await press("z", { ctrl: true });
+    assert.equal(input.value, "");
   });
 
   await runTest("Emacs keys are inert while composing", async () => {
@@ -691,6 +804,27 @@ async function runTest(name, fn) {
 
     await emitPopupShown();
     assert.equal(input.value, draft);
+  });
+
+  await runTest("Ctrl+[ behaves like Escape", async () => {
+    await type("Kanji");
+    assert.equal(input.value, "▽かんじ");
+    await press("[", { ctrl: true, keyCode: 219 });
+    assert.equal(input.value, "");
+    assert.equal(hidden, false);
+    pasteText("draft");
+    await press("[", { ctrl: true, keyCode: 219 });
+    assert.equal(hidden, true);
+    await emitPopupShown();
+    assert.equal(input.value, "draft");
+  });
+
+  await runTest("Ctrl+[ closes the register dialog like Escape", async () => {
+    await type("Nai");
+    await press(" ");
+    assert.equal(elements["register-overlay"].dataset.open, "true");
+    await pressRegister("[", { ctrl: true, keyCode: 219 });
+    assert.equal(elements["register-overlay"].dataset.open, "false");
   });
 
   await runTest("reopening after Escape preserves the input", async () => {
