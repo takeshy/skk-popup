@@ -17,7 +17,19 @@
   const registerSaveButton = document.getElementById("register-save");
   const registerCancelButton = document.getElementById("register-cancel");
 
-  const DEFAULT_STATUS = "Enter: copy / Shift+Enter: newline / Space: convert";
+  const DEFAULT_STATUS = engine.IDLE_STATUS;
+  const CANDIDATE_STATUS = engine.CANDIDATE_STATUS;
+  // Status strings the engine/app set deliberately; refreshStatus() leaves
+  // them in place instead of replacing them with the context hint.
+  const STICKY_STATUS = new Set([
+    "Copied.",
+    "Nothing to copy.",
+    "Copy failed.",
+    "Registered.",
+    "Dictionary load failed."
+  ]);
+  // The subset of those that should clear when the popup is re-summoned.
+  const REOPEN_CLEAR_STATUS = new Set(["Copied.", "Nothing to copy.", "Copy failed.", "Registered."]);
   const INLINE_CANDIDATES = 4;
   const LIST_PAGE_SIZE = 7;
   const LIST_LABELS = ["a", "s", "d", "f", "j", "k", "l"];
@@ -182,7 +194,10 @@
     candidates: [],
     candidateIndex: 0,
     showingCandidate: false,
-    replacedLength: 0
+    replacedLength: 0,
+    // Okurigana the engine re-appends to the registered stem on commit
+    // (mirrors omarchy RegisterState.Okuri); "" for okuri-nasi.
+    okuri: ""
   };
 
   const state = {
@@ -348,6 +363,41 @@
     state.selectionEnd = state.cursor;
   }
 
+  // ---- committed-text editing (Emacs caret/kill keys, select-all) --------
+
+  function moveCaretTo(pos) {
+    state.cursor = pos;
+    state.selectionEnd = pos;
+    render();
+  }
+
+  function killLine(dir) {
+    const selection = normalizedTextSelection();
+    if (selection.start !== selection.end) {
+      replaceSelectedText("");
+      render();
+      return;
+    }
+    const result = engine.killLineAt(state.text, selection.start, dir);
+    state.text = result.text;
+    state.cursor = result.cursor;
+    state.selectionEnd = result.cursor;
+    render();
+  }
+
+  function selectAll() {
+    if (!state.text.length) return;
+    state.cursor = 0;
+    state.selectionEnd = state.text.length;
+    render();
+    // render() collapses the visible selection; re-apply it so the highlight
+    // shows. The model selection (cursor !== selectionEnd) survives the
+    // subsequent `select` event via syncSelectionFromInput().
+    if (typeof inputEl.setSelectionRange === "function") {
+      inputEl.setSelectionRange(0, state.text.length);
+    }
+  }
+
   function renderCandidateHint() {
     if (!state.composing || !state.showingCandidate) {
       if (candidateEl.textContent) candidateEl.textContent = "";
@@ -436,6 +486,17 @@
     }
     updateMode();
     renderCandidateHint();
+    refreshStatus();
+  }
+
+  // refreshStatus keeps #status showing the hint that matches the current
+  // context, unless a deliberate transient message is showing or the
+  // registration modal (which owns its own status line) is open.
+  function refreshStatus() {
+    if (registerOverlay.dataset.open === "true") return;
+    if (STICKY_STATUS.has(statusEl.textContent)) return;
+    const next = state.composing && state.showingCandidate ? CANDIDATE_STATUS : DEFAULT_STATUS;
+    if (statusEl.textContent !== next) statusEl.textContent = next;
   }
 
   function resetComposition() {
@@ -633,6 +694,7 @@
     registerState.candidateIndex = 0;
     registerState.showingCandidate = false;
     registerState.replacedLength = 0;
+    registerState.okuri = "";
   }
 
   function registerPreeditText() {
@@ -674,9 +736,8 @@
     if (registerState.showingCandidate) {
       const raw = registerState.candidates[registerState.candidateIndex] || "";
       const annotation = candidateAnnotation(raw);
-      registerCandidateEl.textContent = annotation
-        ? `${candidateWord(raw)} ※${annotation}`
-        : candidateWord(raw);
+      const word = candidateWord(raw) + (registerState.okuriKana || "");
+      registerCandidateEl.textContent = annotation ? `${word} ※${annotation}` : word;
     } else {
       registerCandidateEl.textContent = "";
     }
@@ -751,7 +812,32 @@
       );
     }
     renderRegisterInput();
+    if (engine.shouldAutoConvertOkuri(registerState)) {
+      void autoConvertRegisterOkuri();
+    }
     return true;
+  }
+
+  // autoConvertRegisterOkuri fires a conversion inside the dialog the moment
+  // the okurigana is complete, matching the main buffer's autoConvertOkuri
+  // (mirrors omarchy register.go autoConvertRegisterOkuri). A missing
+  // candidate is silent: the ▽ buffer is kept for the user to keep editing.
+  async function autoConvertRegisterOkuri() {
+    if (!engine.shouldAutoConvertOkuri(registerState)) return;
+    const key = engine.lookupKey(registerState);
+    if (!key) return;
+
+    const candidates = await lookup(key);
+    if (!engine.shouldAutoConvertOkuri(registerState) || engine.lookupKey(registerState) !== key) {
+      return;
+    }
+    if (!candidates.length) return;
+
+    registerState.candidates = candidates;
+    registerState.candidateIndex = 0;
+    registerState.showingCandidate = true;
+    registerErrorEl.textContent = "";
+    renderRegisterInput();
   }
 
   function flushRegisterRoman() {
@@ -870,10 +956,13 @@
   }
 
   function openRegisterModal() {
-    registerKey = lookupKey() || preeditKana();
+    // key is the dictionary storage key (unchanged, e.g. "はげr"); reading is
+    // the friendly display ("はげ*る"); okuri is re-appended on commit.
+    const info = engine.registerReadingInfo(state);
+    registerKey = info.key;
     if (!registerKey) return;
 
-    registerReadingEl.textContent = registerKey;
+    registerReadingEl.textContent = info.reading;
     registerState.text = "";
     registerState.cursor = 0;
     registerState.selectionEnd = 0;
@@ -881,6 +970,7 @@
     registerState.wideAscii = false;
     registerState.katakanaMode = null;
     resetRegisterComposition();
+    registerState.okuri = info.okuri;
     registerInputEl.value = "";
     registerCandidateEl.textContent = "";
     updateRegisterMode();
@@ -951,7 +1041,6 @@
         openRegisterModal();
         return;
       }
-      statusEl.textContent = "Space: next / Enter: commit / x: previous";
       showCandidate();
       return;
     }
@@ -976,9 +1065,7 @@
   }
 
   async function autoConvertOkuri() {
-    if (!state.composing || !state.okuriKey || !state.okuriKana || state.roman || state.candidates.length) {
-      return;
-    }
+    if (!engine.shouldAutoConvertOkuri(state)) return;
 
     const requestKey = lookupKey();
     const candidates = await lookupAny(lookupKeys());
@@ -1022,7 +1109,6 @@
       return;
     }
 
-    statusEl.textContent = "Space: next / Enter: commit / x: previous";
     showCandidate();
   }
 
@@ -1137,7 +1223,7 @@
       replaceSelectedText(applyKatakanaMode(kana));
     }
     render();
-    if (state.composing && state.okuriKey && state.okuriKana && !state.roman && !state.candidates.length) {
+    if (engine.shouldAutoConvertOkuri(state)) {
       void autoConvertOkuri();
     }
     return true;
@@ -1446,6 +1532,11 @@
   }
 
   function restoreForReopenedSession() {
+    // A leftover "Copied."/"Registered." from the previous session should not
+    // greet the reopened popup (mirrors omarchy Shown()).
+    if (REOPEN_CLEAR_STATUS.has(statusEl.textContent)) {
+      statusEl.textContent = DEFAULT_STATUS;
+    }
     render();
     inputEl.focus();
   }
@@ -1483,6 +1574,15 @@
     }
 
     if (isCancelCandidateKeyEvent(e)) {
+      if (state.composing && !state.showingCandidate && (state.okuriKey || state.okuriKana)) {
+        // Ctrl+G before candidates are shown folds an okuri-ari reading
+        // back into one okuri-nasi heading (mirrors omarchy foldOkuriIntoReading).
+        engine.foldOkuriIntoStem(state);
+        render();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
       if (cancelCandidateSelection()) {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -1498,6 +1598,30 @@
       } else {
         toggleKatakanaMode("han");
       }
+      return;
+    }
+
+    // Emacs caret/kill keys + Ctrl+O select-all, on committed text only
+    // (mirrors omarchy handleMainKey Ctrl o/a/e/f/b/k/u with its
+    // `editable = !composing && !roman && !abbrev` guard). preventDefault is
+    // required so WebKitGTK does not run native select-all / find.
+    if (e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1 && "oaefbku".includes(e.key.toLowerCase())) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const editable = !state.composing && !state.roman && !isAbbrevMode();
+      const key = e.key.toLowerCase();
+      if (key === "o") {
+        if (editable) selectAll();
+        return;
+      }
+      if (!editable) return;
+      const sel = normalizedTextSelection();
+      if (key === "a") moveCaretTo(engine.lineStartOfPos(state.text, sel.start));
+      else if (key === "e") moveCaretTo(engine.lineEndOfPos(state.text, sel.start));
+      else if (key === "f") moveCaretTo(sel.start !== sel.end ? sel.end : Math.min(state.text.length, sel.end + 1));
+      else if (key === "b") moveCaretTo(sel.start !== sel.end ? sel.start : Math.max(0, sel.start - 1));
+      else if (key === "k") killLine(1);
+      else if (key === "u") killLine(-1);
       return;
     }
 
@@ -1757,6 +1881,34 @@
     if (e.ctrlKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === "g") {
       e.preventDefault();
       e.stopImmediatePropagation();
+      // Progressive Ctrl+G: unwind the in-progress conversion one step at a
+      // time, and only close the modal once there is nothing left to cancel
+      // (mirrors omarchy register.go handleRegisterKey).
+      if (registerState.showingCandidate) {
+        registerState.showingCandidate = false;
+        registerState.candidates = [];
+        registerState.candidateIndex = 0;
+        registerErrorEl.textContent = "";
+        renderRegisterInput();
+        return;
+      }
+      if (registerState.composing) {
+        if (!engine.foldOkuriIntoStem(registerState)) resetRegisterComposition();
+        registerErrorEl.textContent = "";
+        renderRegisterInput();
+        return;
+      }
+      if (registerState.roman) {
+        registerState.roman = "";
+        renderRegisterInput();
+        return;
+      }
+      // Nothing left in the dialog: if the modal was opened from an okuri-ari
+      // reading with no entry, fold that reading down before closing.
+      if (state.composing && !state.showingCandidate && !state.candidates.length) {
+        engine.foldOkuriIntoStem(state);
+        render();
+      }
       closeRegisterModal();
       return;
     }

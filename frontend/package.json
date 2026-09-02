@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "prebuild": "node ../scripts/build_dictionary.js",
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "test": "node ../tests/skk_engine.test.js && node ../tests/skk_clipboard.test.js"
   }
 }
