@@ -16,6 +16,9 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed build/appicon.png
+var appIcon []byte
+
 //go:embed wails.json
 var wailsJSON []byte
 
@@ -75,6 +78,7 @@ func runDaemon() {
 	wailsApp := application.New(application.Options{
 		Name:        "skk-popup",
 		Description: "SKK popup input window",
+		Icon:        appIcon,
 		Assets: application.AssetOptions{
 			Handler: assetHandler,
 		},
@@ -93,6 +97,7 @@ func runDaemon() {
 		BackgroundType:   application.BackgroundTypeTransparent,
 		BackgroundColour: application.NewRGBA(0, 0, 0, 0),
 		URL:              "/",
+		Linux:            application.LinuxWindow{Icon: appIcon},
 	})
 	app.SetWindow(window)
 

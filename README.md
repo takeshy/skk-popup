@@ -54,7 +54,11 @@ exec-once = uwsm app -- skk-popup
 
 ### Windows
 
-ホットキーはアプリ自身が `RegisterHotKey` で登録します(既定 `Ctrl+Shift+K`、`[hotkey]` セクションで変更・無効化可能)。自動起動はスタートアップフォルダにショートカットを置いてください (`Win+R` → `shell:startup`)。
+ホットキーはアプリ自身が `RegisterHotKey` で登録します(既定 `Ctrl+Shift+K`、`[hotkey]` セクションで変更・無効化可能)。
+
+Microsoft Store / MSIX 版は、インストールまたは更新後に一度起動すると自動起動が登録され、次回の Windows サインインから常駐します。「設定 → アプリ → スタートアップ」の **skk-popup** で有効・無効を切り替えられます。以前にユーザーが無効化した場合は、ここで再度有効にしてください。これはパッケージの [StartupTask](https://learn.microsoft.com/en-us/uwp/schemas/appxpackage/uapmanifestschema/element-desktop-startuptask) による登録です。
+
+EXE 単体版では、スタートアップフォルダにショートカットを置いてください (`Win+R` → `shell:startup`)。
 
 フォーカス復帰は表示直前の前景ウィンドウを記憶して `SetForegroundWindow` で戻します。
 常駐プロセスとの IPC には、MSIX パッケージでも利用できるセッションローカルの Windows 名前付きパイプを使用します。

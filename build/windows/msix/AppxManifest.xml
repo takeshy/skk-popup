@@ -35,6 +35,9 @@
       </uap:VisualElements>
       <Extensions>
         <desktop:Extension Category="windows.fullTrustProcess" Executable="skk-popup.exe" />
+        <desktop:Extension Category="windows.startupTask" Executable="skk-popup.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="SkkPopupStartup" Enabled="true" DisplayName="skk-popup" />
+        </desktop:Extension>
       </Extensions>
     </Application>
   </Applications>
