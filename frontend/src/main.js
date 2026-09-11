@@ -1480,7 +1480,12 @@
   }
 
   function handleLiteralAscii(e) {
-    if (state.composing || isAbbrevMode() || !ASCII_PRINTABLE_RE.test(e.key)) return false;
+    if (isAbbrevMode() || !ASCII_PRINTABLE_RE.test(e.key)) return false;
+
+    if (state.composing) {
+      if (!state.showingCandidate) return false;
+      commitCandidate();
+    }
 
     e.preventDefault();
     appendText(e.key);

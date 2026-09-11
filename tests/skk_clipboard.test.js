@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 
 const DICT = {
   "かんじ": ["感じ", "漢字"],
+  "わたし": ["私"],
   "ちょう>": ["超"],
   "もt": ["持"],
   "かえr": ["変"],
@@ -435,6 +436,13 @@ async function runTest(name, fn) {
     await press(" ");
     await type("na");
     assert.equal(input.value, "感じな");
+  });
+
+  await runTest("literal punctuation after a candidate commits it and is preserved", async () => {
+    await type("Watashi");
+    await press(" ");
+    await type("(no(");
+    assert.equal(input.value, "私(の(");
   });
 
   await runTest("Ctrl+G cancels candidate selection back to preedit", async () => {
