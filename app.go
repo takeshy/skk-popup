@@ -18,9 +18,15 @@ import (
 // App is the Wails application: a permanently resident popup window that
 // is shown/hidden on demand. Exported methods are exposed to the
 // frontend as bindings.
+type popupWindow interface {
+	Show() application.Window
+	Hide() application.Window
+	SetSize(int, int) application.Window
+}
+
 type App struct {
 	application *application.App
-	window      *application.WebviewWindow
+	window      popupWindow
 	cfg         *config.Config
 	store       *dict.Store
 	copier      *clipboard.Copier
@@ -172,7 +178,7 @@ func (a *App) showPopupLocked() {
 	if a.desktop != nil {
 		a.desktop.RememberFocus()
 	}
-	a.window.Show()
+	a.window.Show().Focus()
 	a.application.Event.Emit("popup:shown")
 }
 
@@ -195,6 +201,11 @@ func (a *App) hidePopupLocked() {
 	a.pasteAfterHide = false
 	a.mu.Unlock()
 
+	// AppKit can reveal a window independently of our visibility flag.
+	// Always hide the native window, even when it is already logically hidden.
+	if a.window != nil {
+		a.window.Hide()
+	}
 	if !wasVisible && !doPaste {
 		return
 	}
@@ -203,7 +214,6 @@ func (a *App) hidePopupLocked() {
 			log.Printf("dict store flush: %v", err)
 		}
 	}
-	a.window.Hide()
 	if a.desktop == nil {
 		return
 	}

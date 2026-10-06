@@ -12,13 +12,13 @@ Wails 製の常駐型 SKK ポップアップ入力窓。ホットキーで呼び
 |---|---|
 | Linux + Wayland (Hyprland 推奨) | `wl-clipboard` (`wl-copy`)、WebKit2GTK 4.1、任意で `wtype` (自動貼り付け時) |
 | Windows 10 以降 | 追加要件なし (ホットキーはアプリ内登録) |
-| macOS | `osascript` が使う **Accessibility / Automation 権限**の許可 (自動貼り付けとフォーカス復帰時) |
+| macOS | 自動貼り付けを使う場合、`osascript` が使う **Accessibility / Automation 権限**の許可 |
 
 ## インストール
 
 Windows 版は [Microsoft Store](https://apps.microsoft.com/detail/9PNF2XK5S13N?hl=ja-jp&gl=JP&ocid=pdpshare) からインストールできます。
 
-そのほかの環境では GitHub Releases からバイナリをダウンロードしてください。
+Linux / Windows の EXE 単体版は GitHub Releases からバイナリをダウンロードしてください。macOS は下記のインストールスクリプトを利用できます。
 
 ```sh
 # Linux
@@ -26,9 +26,6 @@ install -Dm755 skk-popup-linux-amd64 ~/.local/bin/skk-popup
 
 # Windows (PowerShell)
 # skk-popup-windows-amd64.exe を skk-popup.exe として PATH の通った場所へ
-
-# macOS (Apple Silicon)
-chmod +x skk-popup-darwin-arm64 && sudo mv skk-popup-darwin-arm64 /usr/local/bin/skk-popup
 ```
 
 ### Hyprland への登録
@@ -65,12 +62,34 @@ EXE 単体版では、スタートアップフォルダにショートカット�
 
 ### macOS
 
+Apple Silicon 向けのビルド済みバイナリを、管理者権限なしで `~/.local/bin/skk-popup` にインストールできます。辞書はバイナリに内蔵されているため、Go・Node.js や辞書の別途ダウンロードは不要です。
+
+```sh
+skk_installer=$(mktemp -t skk-popup-install)
+curl -fsSL https://raw.githubusercontent.com/takeshy/skk-popup/main/scripts/install_macos.sh -o "$skk_installer"
+less "$skk_installer"  # 内容を確認 (q で終了)
+sh "$skk_installer"
+# バージョン指定も可能: sh "$skk_installer" v0.10.3
+```
+
+スクリプトは GitHub Releases の SHA-256 ダイジェストを照合してから配置します。既存の実行ファイルはバックアップし、設定・ユーザー辞書・自動起動設定は変更しません。更新後、旧版が常駐している場合は終了して起動し直してください。
+
+```sh
+~/.local/bin/skk-popup           # 常駐プロセスを起動
+# 別のターミナルで:
+~/.local/bin/skk-popup show      # 入力窓を表示
+```
+
+macOS 配布版 v0.10.3 は Developer ID 署名・Apple 公証を受けていません。取得方法や Mac の管理ポリシーによっては起動が制限されます。このスクリプトは隔離属性の削除やセキュリティ設定の変更を行いません。警告が出た場合は [Apple の案内](https://support.apple.com/ja-jp/102445) を確認してください。
+
 キーボードショートカットは OS 側の機能に委譲します (アプリ内では捕捉しません):
 
-- [Shortcuts.app](https://support.apple.com/guide/shortcuts-mac/intro-to-shortcuts-apdfebc4f80a/mac) で「シェルスクリプトを実行」→ `skk-popup show` を作成し、ショートカットにキーを割り当てる
+- [Shortcuts.app](https://support.apple.com/guide/shortcuts-mac/intro-to-shortcuts-apdfebc4f80a/mac) で「シェルスクリプトを実行」→ `/Users/自分のユーザー名/.local/bin/skk-popup show` を作成し、詳細の「キーボードショートカットを追加」で `Control+Shift+K` を割り当てる。必要に応じてショートカット.app の設定 → 詳細で「スクリプトの実行を許可」を有効にする
 - または skhd / Raycast / Hammerspoon などから `skk-popup show` を呼ぶ
 
-自動貼り付けとフォーカス復帰は System Events 経由で行うため、初回実行時に **Accessibility** と **Automation** の権限許可を求められます (`システム設定 > プライバシーとセキュリティ`)。自動起動は「ログイン項目」に登録してください。
+入力窓はすべてのデスクトップ (Spaces) とフルスクリーンのアプリ上に表示できます。Dock 側での「割り当て先」の設定は不要です。
+
+フォーカス復帰は macOS の標準 API を使用し、追加の権限は不要です。自動貼り付けは System Events 経由で行うため、初回実行時に **Accessibility** と **Automation** の権限許可を求められます (`システム設定 > プライバシーとセキュリティ`)。自動起動は「ログイン項目」またはユーザー用 LaunchAgent に登録してください。
 
 macOS では設定の `paste_key` の `ctrl` は **Cmd** として扱われます (`ctrl+v` → Cmd+V)。
 
@@ -187,7 +206,7 @@ external_path = ""
 
 前提:
 
-- Go 1.23 以降 (リポジトリには `.mise.toml` を同梱しています)
+- Go 1.25 以降 (Go / Node.js は `mise install` でも準備できます)
 - Node.js 22 以降
 - Linux のみ: `libgtk-3-dev` と `libwebkit2gtk-4.1-dev` 相当のパッケージ (Arch なら `webkit2gtk-4.1`)。Windows/macOS は追加パッケージ不要 (macOS ビルドは Xcode command line tools)
 - `https://skk-dev.github.io/dict/` にアクセスできるネットワーク環境 (初回のみ)

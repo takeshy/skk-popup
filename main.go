@@ -79,6 +79,9 @@ func runDaemon() {
 		Name:        "skk-popup",
 		Description: "SKK popup input window",
 		Icon:        appIcon,
+		Mac: application.MacOptions{
+			ActivationPolicy: application.ActivationPolicyAccessory,
+		},
 		Assets: application.AssetOptions{
 			Handler: assetHandler,
 		},
@@ -98,6 +101,10 @@ func runDaemon() {
 		BackgroundColour: application.NewRGBA(0, 0, 0, 0),
 		URL:              "/",
 		Linux:            application.LinuxWindow{Icon: appIcon},
+		Mac: application.MacWindow{
+			CollectionBehavior: application.MacWindowCollectionBehaviorCanJoinAllSpaces |
+				application.MacWindowCollectionBehaviorFullScreenAuxiliary,
+		},
 	})
 	app.SetWindow(window)
 

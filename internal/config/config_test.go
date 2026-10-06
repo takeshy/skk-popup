@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -24,7 +25,11 @@ func TestLoadDefaultsWhenMissing(t *testing.T) {
 	if !cfg.Window.RestoreFocus {
 		t.Fatal("restore_focus should default to true")
 	}
-	if cfg.Clipboard.Backend != "wl-copy" || !cfg.Clipboard.AutoPaste || cfg.Clipboard.PasteKey != "ctrl+shift+v" {
+	backend := "wails"
+	if runtime.GOOS == "linux" {
+		backend = "wl-copy"
+	}
+	if cfg.Clipboard.Backend != backend || !cfg.Clipboard.AutoPaste || cfg.Clipboard.PasteKey != "ctrl+shift+v" {
 		t.Fatalf("unexpected clipboard defaults: %+v", cfg.Clipboard)
 	}
 }

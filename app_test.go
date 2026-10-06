@@ -5,16 +5,54 @@ import (
 
 	"github.com/takeshy/skk-popup/internal/clipboard"
 	"github.com/takeshy/skk-popup/internal/config"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type focusRecorder struct {
 	remembered int
+	restored   int
 }
 
 func (*focusRecorder) Name() string           { return "test" }
 func (f *focusRecorder) RememberFocus()       { f.remembered++ }
-func (*focusRecorder) RestoreFocus()          {}
+func (f *focusRecorder) RestoreFocus()        { f.restored++ }
 func (*focusRecorder) PasteKeys(string) error { return nil }
+
+type popupRecorder struct {
+	*application.WebviewWindow
+	hides int
+}
+
+func (w *popupRecorder) Hide() application.Window {
+	w.hides++
+	return nil
+}
+
+func TestHidePopupHidesWindowEvenWhenVisibilityFlagIsStale(t *testing.T) {
+	for _, visible := range []bool{false, true} {
+		window := &popupRecorder{}
+		desktop := &focusRecorder{}
+		app := &App{
+			window: window, desktop: desktop, cfg: config.Default(),
+			visible: visible, pendingShow: true,
+		}
+		app.HidePopup()
+		app.HidePopup()
+		if window.hides != 2 {
+			t.Fatalf("visible=%v: native window hidden %d times, want 2", visible, window.hides)
+		}
+		if app.visible || app.pendingShow || app.pasteAfterHide {
+			t.Fatalf("visible=%v: popup state was not cleared", visible)
+		}
+		wantRestores := 0
+		if visible {
+			wantRestores = 1
+		}
+		if desktop.restored != wantRestores {
+			t.Fatalf("visible=%v: restored focus %d times, want %d", visible, desktop.restored, wantRestores)
+		}
+	}
+}
 
 func TestShowPopupDoesNotRecaptureFocusWhenAlreadyVisible(t *testing.T) {
 	desktop := &focusRecorder{}
