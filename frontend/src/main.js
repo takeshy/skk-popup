@@ -681,7 +681,7 @@
 
   function commitCandidate() {
     if (!state.composing) return;
-    const committedKey = lookupKey();
+    const committedKey = candidateHistoryKey(lookupKey(), state.okuriKana);
     const rawCandidate = state.showingCandidate ? state.candidates[state.candidateIndex] : "";
     const selectedCandidate = rawCandidate ? candidateWord(rawCandidate) : "";
     const text = state.showingCandidate ? candidateText() : preeditKana();
@@ -738,29 +738,37 @@
     render();
   }
 
-  function lookup(kana) {
-    if (lookupCache.has(kana)) {
-      return lookupCache.get(kana);
+  function candidateHistoryKey(key, okuri = "") {
+    return okuri ? `${key}*${okuri}` : key;
+  }
+
+  function lookup(kana, okuri = "") {
+    const historyKey = candidateHistoryKey(kana, okuri);
+    const cacheKey = JSON.stringify([kana, okuri]);
+    if (lookupCache.has(cacheKey)) {
+      return lookupCache.get(cacheKey);
     }
 
     const merged = Promise.resolve(
       mergeCandidateLists([
-        candidateHistory[kana] || [],
+        // Legacy okuri-ari history lacks the actual kana; using it here
+        // would share selections between e.g. おおk*き and おおk*く again.
+        candidateHistory[historyKey] || [],
         userDict[kana] || [],
         systemDict[kana] || []
       ])
     );
-    lookupCache.set(kana, merged);
+    lookupCache.set(cacheKey, merged);
     return merged;
   }
 
-  function lookupAny(keys) {
+  function lookupAny(keys, okuri = "") {
     return new Promise((resolve) => {
       void (async () => {
         const merged = [];
         const seen = new Set();
         for (const { key, numbers } of keys) {
-          const candidates = await lookup(key);
+          const candidates = await lookup(key, okuri);
           for (const candidate of candidates) {
             const text = numbers ? engine.applyNumericCandidate(candidate, numbers) : candidate;
             const word = candidateWord(text);
@@ -793,7 +801,6 @@
     const existing = Array.isArray(nextCandidateHistory[key]) ? nextCandidateHistory[key] : [];
     nextCandidateHistory[key] = [candidate, ...existing.filter((item) => item !== candidate)].slice(0, 8);
     syncCandidateHistory(nextCandidateHistory);
-    lookupCache.delete(key);
     persistHistory();
   }
 
@@ -940,7 +947,7 @@
     const key = engine.lookupKey(registerState);
     if (!key) return;
 
-    const candidates = await lookup(key);
+    const candidates = await lookup(key, registerState.okuriKana);
     if (!engine.shouldAutoConvertOkuri(registerState) || engine.lookupKey(registerState) !== key) {
       return;
     }
@@ -1012,7 +1019,7 @@
     if (!key) return;
 
     if (!registerState.candidates.length) {
-      registerState.candidates = await lookup(key);
+      registerState.candidates = await lookup(key, registerState.okuriKana);
       registerState.candidateIndex = 0;
       if (!registerState.candidates.length) {
         registerErrorEl.textContent = "候補がありません。変換バッファは維持されます。";
@@ -1147,7 +1154,7 @@
     if (!flushPendingRoman()) return;
 
     if (!state.candidates.length) {
-      state.candidates = await lookupAny(lookupKeys());
+      state.candidates = await lookupAny(lookupKeys(), state.okuriKana);
       state.candidateIndex = 0;
       if (!state.candidates.length) {
         showPreedit();
@@ -1181,7 +1188,7 @@
     if (!engine.shouldAutoConvertOkuri(state)) return;
 
     const requestKey = lookupKey();
-    const candidates = await lookupAny(lookupKeys());
+    const candidates = await lookupAny(lookupKeys(), state.okuriKana);
     if (
       !state.composing ||
       state.roman ||
@@ -1276,9 +1283,10 @@
     if (!key || !word) return;
 
     const nextCandidateHistory = { ...candidateHistory };
-    if (Array.isArray(nextCandidateHistory[key])) {
-      nextCandidateHistory[key] = nextCandidateHistory[key].filter((item) => candidateWord(item) !== word);
-      if (!nextCandidateHistory[key].length) delete nextCandidateHistory[key];
+    const historyKey = candidateHistoryKey(key, state.okuriKana);
+    if (Array.isArray(nextCandidateHistory[historyKey])) {
+      nextCandidateHistory[historyKey] = nextCandidateHistory[historyKey].filter((item) => candidateWord(item) !== word);
+      if (!nextCandidateHistory[historyKey].length) delete nextCandidateHistory[historyKey];
     }
     syncCandidateHistory(nextCandidateHistory);
 

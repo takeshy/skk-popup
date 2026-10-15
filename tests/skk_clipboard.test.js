@@ -6,6 +6,7 @@ const DICT = {
   "ちょう>": ["超"],
   "もt": ["持"],
   "かえr": ["変"],
+  "おおk": ["多", "大"],
   ">てき": ["的"]
 };
 
@@ -120,12 +121,11 @@ globalThis.document = {
 
 const fakeApp = {
   async LoadUserDict() {
-    return "{}";
+    // Damaged optional persistence must not prevent dictionary loading.
+    return "{damaged json";
   },
   async LoadHistory() {
-    // A damaged optional history file must not prevent the system dictionary
-    // and the rest of the popup from loading.
-    return "{damaged json";
+    return JSON.stringify({ "おおk": ["大"], "れきし": ["歴史"] });
   },
   async SaveUserDict(data) {
     savedUserDict = JSON.parse(data);
@@ -306,7 +306,7 @@ async function runTest(name, fn) {
     await press(" ");
     assert.equal(input.value, "感じ");
     assert.ok(notifyReadyCount >= 1);
-    assert.ok(persistenceWarnings.some(([message]) => message.startsWith("LoadHistory:")));
+    assert.ok(persistenceWarnings.some(([message]) => message.startsWith("LoadUserDict:")));
   });
 
   await runTest("digits type literally outside composition", async () => {
@@ -414,6 +414,65 @@ async function runTest(name, fn) {
   await runTest("okuri conversion auto-selects after okuri kana", async () => {
     await type("MoTi");
     assert.equal(input.value, "持ち");
+  });
+
+  await runTest("candidate learning separates okurigana sharing a consonant", async () => {
+    // Old history has no okurigana and must not promote 大 for く.
+    await type("OoKu");
+    assert.equal(input.value, "多く");
+    await resetWindow();
+    await type("OoKi");
+    await press(" ");
+    assert.equal(input.value, "大き");
+    await press("Enter");
+    await type("i");
+    assert.equal(input.value, "大きい");
+    assert.deepEqual(savedHistory["おおk*き"], ["大"]);
+    assert.deepEqual(savedHistory["おおk"], ["大"]);
+    await resetWindow();
+
+    await type("OoKu");
+    assert.equal(input.value, "多く");
+    await press("Enter");
+    assert.deepEqual(savedHistory["おおk*く"], ["多"]);
+    await resetWindow();
+
+    // Both lookups must keep their own ordering, including cached results.
+    await type("OoKi");
+    assert.equal(input.value, "大き");
+    await press("Escape");
+    await press("Escape");
+    await type("OoKu");
+    assert.equal(input.value, "多く");
+  });
+
+  await runTest("registration dialog uses the matching okurigana history", async () => {
+    await type("Miteitango");
+    await press(" ");
+    assert.equal(elements["register-overlay"].dataset.open, "true");
+    await typeRegister("OoKi");
+    assert.equal(elements["register-input"].value, "大き");
+    await pressRegister("Enter");
+    await typeRegister("OoKu");
+    assert.equal(elements["register-input"].value, "大き多く");
+    elements["register-cancel"].listeners.click();
+    await flush();
+  });
+
+  await runTest("purging an okuri candidate removes only its matching history", async () => {
+    await type("OoKi");
+    assert.equal(input.value, "大き");
+    await press("X", { shift: true });
+    assert.equal(savedHistory["おおk*き"], undefined);
+    assert.deepEqual(savedHistory["おおk*く"], ["多"]);
+  });
+
+  await runTest("existing history without okurigana still supplies candidates", async () => {
+    await type("Rekishi");
+    await press(" ");
+    assert.equal(input.value, "歴史");
+    await press("Enter");
+    assert.deepEqual(savedHistory["れきし"], ["歴史"]);
   });
 
   await runTest("missing okuri candidates open registration", async () => {
