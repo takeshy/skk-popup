@@ -55,9 +55,12 @@ func osascript(script string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "osascript", "-e", script)
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", err
+		if detail := strings.TrimSpace(string(out)); detail != "" {
+			return "", fmt.Errorf("osascript: %w: %s", err, detail)
+		}
+		return "", fmt.Errorf("osascript: %w", err)
 	}
 	return strings.TrimSpace(string(out)), nil
 }
