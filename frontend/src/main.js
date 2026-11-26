@@ -1796,7 +1796,7 @@
       hotkeyBindLineEl.textContent = hyprlandBindLine(accelerator);
       hotkeyBindRow.hidden = !hotkeyBindLineEl.textContent;
     } else if (os === "darwin") {
-      hotkeyNoteEl.textContent = "macOS では Shortcuts.app などから `skk-popup show` を呼び出してキーを割り当ててください。";
+      hotkeyNoteEl.textContent = "常駐アプリが直接キーを受け取ります。同じキーをショートカット.app で使っている場合は、先にそちらの割り当てを解除してください。Ctrl / Shift / Option / Cmd と A-Z、0-9、Space、F1-F20 が使えます。";
       hotkeyBindRow.hidden = true;
     } else {
       hotkeyNoteEl.textContent = "A-Z, 0-9, F1-F24 と Ctrl / Shift / Alt / Win を + で繋ぎます。保存時に再登録されます。";

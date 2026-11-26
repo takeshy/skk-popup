@@ -33,10 +33,8 @@ type DictionaryConfig struct {
 	ExternalPath string
 }
 
-// HotkeyConfig registers an in-app global hotkey. This exists for
-// Windows, which has no compositor bind equivalent; on Linux the binding
-// belongs to Hyprland and on macOS to OS-level shortcut facilities
-// (Shortcuts.app etc.), so the default is disabled there.
+// HotkeyConfig registers an in-app global hotkey on Windows and macOS.
+// On macOS this is opt-in for users switching from an external launcher.
 type HotkeyConfig struct {
 	Enabled     bool
 	Accelerator string // "Ctrl+Shift+K" style
@@ -267,7 +265,7 @@ func Marshal(c *Config) string {
 	b.WriteString("# \"ctrl+v\" | \"ctrl+shift+v\"\n")
 	fmt.Fprintf(&b, "paste_key = %s\n", quote(c.Clipboard.PasteKey))
 	b.WriteString("\n[hotkey]\n")
-	b.WriteString("# Windows のみ有効。アプリ内でグローバルホットキーを登録する\n")
+	b.WriteString("# Windows / macOS でアプリ内のグローバルホットキーを登録する\n")
 	fmt.Fprintf(&b, "enabled = %t\n", c.Hotkey.Enabled)
 	fmt.Fprintf(&b, "accelerator = %s\n", quote(c.Hotkey.Accelerator))
 	b.WriteString("\n[dictionary]\n")

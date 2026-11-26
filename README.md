@@ -18,7 +18,7 @@ Wails 製の常駐型 SKK ポップアップ入力窓。ホットキーで呼び
 
 Windows 版は [Microsoft Store](https://apps.microsoft.com/detail/9PNF2XK5S13N?hl=ja-jp&gl=JP&ocid=pdpshare) からインストールできます。
 
-Linux / Windows の EXE 単体版は GitHub Releases からバイナリをダウンロードしてください。macOS は下記のインストールスクリプトを利用できます。
+Linux 版と Windows の EXE 単体版は、CPU に合ったバイナリ (amd64 / arm64) を [GitHub Releases](https://github.com/takeshy/skk-popup/releases) からダウンロードしてください。Apple Silicon 搭載の Mac では、下記のインストールスクリプトを利用できます。
 
 ```sh
 # Linux
@@ -82,7 +82,15 @@ sh "$skk_installer"
 
 macOS 配布版 v0.10.3 は Developer ID 署名・Apple 公証を受けていません。取得方法や Mac の管理ポリシーによっては起動が制限されます。このスクリプトは隔離属性の削除やセキュリティ設定の変更を行いません。警告が出た場合は [Apple の案内](https://support.apple.com/ja-jp/102445) を確認してください。
 
-キーボードショートカットは OS 側の機能に委譲します (アプリ内では捕捉しません):
+v0.10.6 からは、常駐アプリにホットキーを直接登録できます。初期設定では無効です。直接登録すると、キーを押すだけで常駐アプリが入力窓を表示します。
+
+1. 上の `skk-popup show` コマンドで入力窓を開き、**⋮ → 設定 → ショートカット** を開きます。
+2. ショートカット.app などで同じキーを使っている場合は、そちらの割り当てを解除します。
+3. 「アプリ内でグローバルホットキーを登録する」にチェックを入れ、キーを指定して保存します。たとえば `Ctrl+Shift+K` は ⌃⇧K です。⌘ を使う場合は `Cmd+Shift+K` と入力します。
+
+保存時に「ホットキーを登録できません」と表示された場合は、競合する割り当てを解除するか別のキーを選び、もう一度保存してください。
+
+外部ランチャーから呼び出す場合は、アプリ内ホットキーを無効のままにして、次のいずれかを設定します。
 
 - [Shortcuts.app](https://support.apple.com/guide/shortcuts-mac/intro-to-shortcuts-apdfebc4f80a/mac) で「シェルスクリプトを実行」→ `/Users/自分のユーザー名/.local/bin/skk-popup show` を作成し、詳細の「キーボードショートカットを追加」で `Control+Shift+K` を割り当てる。必要に応じてショートカット.app の設定 → 詳細で「スクリプトの実行を許可」を有効にする
 - または skhd / Raycast / Hammerspoon などから `skk-popup show` を呼ぶ
@@ -104,10 +112,10 @@ skk-popup quit       デーモン終了
 skk-popup version    バージョン表示
 ```
 
-1. `Ctrl+Shift+K` (上記 bind) で入力窓を出す。表示済みの場合は Clipboard Input の入力欄へフォーカスします。窓は必ず `かな` モードで開きます
-2. 窓の中で通常の SKK 操作で入力する
-3. 未変換状態で `Enter` (または `Copy` ボタン) → 確定文字列がクリップボードにコピーされ、窓が閉じます
-4. 直前のウィンドウへフォーカスが戻るので、貼り付ける
+1. 常駐中に、設定したホットキー (Windows の既定は `Ctrl+Shift+K`) または `skk-popup show` で入力窓を開きます。窓は `かな` モードで開き、すでに表示している場合は入力欄にフォーカスが戻ります。
+2. たとえば `Nihongo` と入力し、`Space` で「日本語」を選び、`Enter` で候補を確定します。
+3. もう一度 `Enter` を押すか `Copy` をクリックすると、確定した文字列をクリップボードにコピーして窓を閉じます。
+4. 既定では直前のウィンドウにフォーカスを戻し、貼り付けキーを送ります。自動貼り付けを無効にしている場合は、貼り付け先で手動で貼り付けます。
 
 デーモンは辞書をメモリに保持したまま常駐するため、2 回目以降の表示は即時です。
 
@@ -158,7 +166,7 @@ chrome-skk-lite のクリップボード入力窓と同じ挙動です。
 
 Linux: `~/.config/skk-popup/config.toml` / Windows: `%AppData%\skk-popup\config.toml` / macOS: `~/Library/Application Support/skk-popup/config.toml`
 
-**⋮ → 設定** で同じ内容を GUI から編集・保存できます。保存すると `config.toml` が書き換わり、ウィンドウサイズ・クリップボード/貼り付け設定・(Windows の) ホットキーは即時に反映されます。外部辞書の変更だけは再起動後に反映されます。Linux ではホットキー欄に入力したキーから Hyprland 用の `bind =` 行を生成してコピーできます (キー自体は Hyprland 側で登録)。設定ファイルの場所・データディレクトリ・使用中の辞書もここで確認できます。
+**⋮ → 設定** で同じ内容を GUI から編集・保存できます。保存すると `config.toml` が書き換わり、ウィンドウサイズ・クリップボード/貼り付け設定・Windows / macOS のホットキーは即時に反映されます。外部辞書の変更だけは再起動後に反映されます。Linux ではホットキー欄に入力したキーから Hyprland 用の `bind =` 行を生成してコピーできます (キー自体は Hyprland 側で登録)。設定ファイルの場所・データディレクトリ・使用中の辞書もここで確認できます。
 
 ```toml
 [window]
@@ -182,11 +190,12 @@ auto_paste_delay_ms = 80
 paste_key = "ctrl+shift+v"
 
 [hotkey]
-# Windows のみ有効。アプリ内でグローバルホットキーを登録する (RegisterHotKey)。
-# 既定は Windows のみ true (Linux は Hyprland bind、macOS は OS のショートカット
-# 機能に委譲するため、他 OS では設定しても無視される)
+# Windows / macOS で常駐アプリに直接登録する。既定は Windows のみ true。
+# Linux では Hyprland 側で bind する。
 enabled = true
-accelerator = "Ctrl+Shift+K"   # A-Z, 0-9, F1-F24 + Ctrl/Shift/Alt/Win
+# macOS: A-Z, 0-9, Space, F1-F20 + Ctrl/Shift/Option/Cmd
+# Windows: A-Z, 0-9, F1-F24 + Ctrl/Shift/Alt/Win
+accelerator = "Ctrl+Shift+K"
 
 [dictionary]
 # 外部辞書ファイルのパス。指定するとバイナリ埋め込みより優先される (省略可)
@@ -245,17 +254,6 @@ go test ./...
 
 ## アーキテクチャ
 
-```text
-Hyprland bind ──▶ skk-popup show ──▶ Unix socket ($XDG_RUNTIME_DIR/skk-popup.sock)
-                                        │
-                                        ▼
-                     skk-popup デーモン (常駐)
-                     ├─ IPC server (toggle/show/hide/quit)
-                     ├─ AssetServer (/dictionary.json を WebView へ配信)
-                     ├─ ユーザー辞書・学習履歴の永続化
-                     ├─ wl-copy によるクリップボード転送
-                     └─ WebKit2GTK フロントエンド (skk_engine.js + 入力窓 UI)
-```
+Windows と macOS のアプリ内ホットキーは常駐プロセスを直接呼び出します。Hyprland の `bind` や外部ランチャーは `skk-popup show` を実行し、Linux / macOS では Unix ドメインソケット、Windows では名前付きパイプ経由で同じ入力窓を表示します。
 
-- システム辞書はバイナリに embed され、WebView から `fetch('/dictionary.json')` で直接読み込まれます (JS↔ネイティブブリッジを通さない)
-- グローバルホットキーはアプリ側で捕捉せず、Hyprland の `bind` に完全に委譲します
+入力窓の WebView は `/dictionary.json` からシステム辞書を読み込み、`skk_engine.js` で変換します。Go 側がユーザー辞書・学習履歴の保存とクリップボードへの転送を担当します。

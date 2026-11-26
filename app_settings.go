@@ -66,7 +66,7 @@ func (a *App) LoadConfig() config.View {
 }
 
 // SaveConfig validates, writes config.toml, and applies what can change at
-// runtime: window size, clipboard behaviour, and (on Windows) the hotkey.
+// runtime: window size, clipboard behaviour, and the native hotkey.
 // The dictionary path takes effect after a restart.
 func (a *App) SaveConfig(view config.View) (SaveConfigResult, error) {
 	next, err := config.FromView(view)
@@ -91,16 +91,16 @@ func (a *App) SaveConfig(view config.View) (SaveConfigResult, error) {
 	if prev.Clipboard.Backend != next.Clipboard.Backend && a.application != nil {
 		a.copier = clipboard.New(next.Clipboard.Backend, a.application.Clipboard.SetText)
 	}
-	if prev.Hotkey != next.Hotkey {
+	if prev.Hotkey != next.Hotkey || next.Hotkey.Enabled && (a.hotkeyMgr == nil || !a.hotkeyMgr.Active()) {
 		if a.hotkeyMgr != nil {
 			a.hotkeyMgr.Stop()
 			a.hotkeyMgr = nil
 		}
 		if next.Hotkey.Enabled {
-			mgr, err := hotkey.Start(next.Hotkey.Accelerator, a.ShowPopup)
+			mgr, err := hotkey.Start(a.application.GlobalShortcut, next.Hotkey.Accelerator, a.ShowPopup)
 			if err != nil {
 				if errors.Is(err, hotkey.ErrUnsupported) {
-					result.Warning = "アプリ内ホットキーは Windows 専用です。この OS では設定は保存されるだけで無視されます。"
+					result.Warning = "この OS ではシステム側でショートカットを設定してください。"
 				} else {
 					result.Warning = "ホットキーを登録できません: " + err.Error()
 				}

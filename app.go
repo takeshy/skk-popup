@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"runtime"
 	"sync"
 	"time"
 
@@ -55,7 +56,7 @@ func (a *App) ServiceStartup(_ context.Context, _ application.ServiceOptions) er
 	a.desktop = desktop.New()
 
 	if a.cfg.Hotkey.Enabled {
-		mgr, err := hotkey.Start(a.cfg.Hotkey.Accelerator, a.ShowPopup)
+		mgr, err := hotkey.Start(a.application.GlobalShortcut, a.cfg.Hotkey.Accelerator, a.ShowPopup)
 		if err != nil {
 			// Not fatal: the popup stays reachable via `skk-popup toggle`.
 			log.Printf("hotkey: %v", err)
@@ -160,26 +161,31 @@ func (a *App) showPopupLocked() {
 		a.mu.Unlock()
 		return
 	}
-	if a.visible {
-		a.mu.Unlock()
-		if a.window != nil {
-			a.window.Show().Focus()
-		}
-		if a.application != nil {
-			a.application.Event.Emit("popup:focus-input")
-		}
-		return
-	}
+	wasVisible := a.visible
 	a.visible = true
 	a.mu.Unlock()
 
-	// Capture who had focus before our window takes it (no-op on Linux,
-	// where the compositor tracks this for us).
-	if a.desktop != nil {
-		a.desktop.RememberFocus()
+	activate := func() {
+		if !wasVisible && a.desktop != nil {
+			a.desktop.RememberFocus()
+		}
+		if a.window != nil {
+			a.window.Show().Focus()
+		}
 	}
-	a.window.Show().Focus()
-	a.application.Event.Emit("popup:shown")
+	if runtime.GOOS == "darwin" && a.application != nil {
+		// Capture the previous app and make the popup key in one AppKit turn.
+		application.InvokeSync(activate)
+	} else {
+		activate()
+	}
+	if a.application != nil {
+		if wasVisible {
+			a.application.Event.Emit("popup:focus-input")
+		} else {
+			a.application.Event.Emit("popup:shown")
+		}
+	}
 }
 
 // HidePopup hides the window (the daemon keeps running), flushing any

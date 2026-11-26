@@ -1,10 +1,6 @@
 //go:build windows
 
-// Package hotkey registers an OS-level global hotkey that toggles the
-// popup. Only Windows needs an in-app registration: on Linux the key
-// binding belongs to Hyprland, and on macOS users assign one via the OS
-// (Shortcuts.app / launcher tools) because there is no portable
-// RegisterHotKey equivalent without accessibility permissions.
+// Windows receives global hotkeys on a dedicated Win32 message thread.
 package hotkey
 
 import (
@@ -44,7 +40,7 @@ type Manager struct {
 // Start registers accelerator (e.g. "Ctrl+Shift+K") as a global hotkey
 // and invokes onTrigger whenever it is pressed. The returned stop
 // function unregisters it and ends the message loop.
-func Start(accelerator string, onTrigger func()) (*Manager, error) {
+func Start(_ Registry, accelerator string, onTrigger func()) (*Manager, error) {
 	mods, vk, err := ParseAccelerator(accelerator)
 	if err != nil {
 		return nil, err
@@ -107,3 +103,12 @@ func (m *Manager) Stop() {
 
 // Done reports when the message loop has exited.
 func (m *Manager) Done() <-chan struct{} { return m.done }
+
+func (m *Manager) Active() bool {
+	select {
+	case <-m.done:
+		return false
+	default:
+		return true
+	}
+}
